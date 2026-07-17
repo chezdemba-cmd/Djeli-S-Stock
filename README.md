@@ -9,6 +9,8 @@ MVP mobile-first de gestion de marchandises pour grossistes et dépôts d'Afriqu
 - ajout d'une nouvelle référence ;
 - entrées et sorties avec mise à jour immédiate ;
 - journal des mouvements ;
+- gestion de plusieurs dépôts ;
+- clients revendeurs et suivi des créances ;
 - interface responsive pour smartphone ;
 - schéma Supabase multi-entreprises avec RLS.
 

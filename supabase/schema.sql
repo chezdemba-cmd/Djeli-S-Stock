@@ -57,6 +57,28 @@ create table public.stock_movements (
   created_at timestamptz not null default now()
 );
 
+create table public.customers (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  phone text,
+  city text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table public.customer_debts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  customer_id uuid not null references public.customers(id),
+  amount bigint not null check (amount >= 0),
+  amount_paid bigint not null default 0 check (amount_paid >= 0 and amount_paid <= amount),
+  due_date date,
+  status text not null default 'open' check (status in ('open', 'late', 'paid', 'cancelled')),
+  created_by uuid not null references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
 create index stock_movements_lookup on public.stock_movements (organization_id, warehouse_id, product_id, created_at desc);
 
 create view public.current_stock with (security_invoker = true) as
@@ -70,6 +92,8 @@ alter table public.profiles enable row level security;
 alter table public.warehouses enable row level security;
 alter table public.products enable row level security;
 alter table public.stock_movements enable row level security;
+alter table public.customers enable row level security;
+alter table public.customer_debts enable row level security;
 
 create or replace function public.current_organization_id() returns uuid
 language sql stable security definer set search_path = public
@@ -85,6 +109,10 @@ create policy "members read products" on public.products for select
 using (organization_id = public.current_organization_id());
 create policy "members read movements" on public.stock_movements for select
 using (organization_id = public.current_organization_id());
+create policy "members read customers" on public.customers for select
+using (organization_id = public.current_organization_id());
+create policy "members read debts" on public.customer_debts for select
+using (organization_id = public.current_organization_id());
 
 create policy "owner manager write products" on public.products for all
 using (organization_id = public.current_organization_id() and exists (
@@ -93,6 +121,13 @@ using (organization_id = public.current_organization_id() and exists (
 with check (organization_id = public.current_organization_id());
 
 create policy "staff create movements" on public.stock_movements for insert
+with check (organization_id = public.current_organization_id() and created_by = auth.uid());
+
+create policy "staff manage customers" on public.customers for all
+using (organization_id = public.current_organization_id())
+with check (organization_id = public.current_organization_id());
+
+create policy "staff create debts" on public.customer_debts for insert
 with check (organization_id = public.current_organization_id() and created_by = auth.uid());
 
 -- Aucun UPDATE ou DELETE n'est autorisé sur stock_movements :
