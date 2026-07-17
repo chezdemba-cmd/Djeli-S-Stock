@@ -1,27 +1,31 @@
-{
-  "name": "djelis-stock",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.57.4",
-    "lucide-react": "^0.545.0",
-    "next": "16.2.10",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "eslint": "^9.0.0",
-    "eslint-config-next": "16.2.10",
-    "typescript": "^5.9.0"
-  }
-}
+# DJELI'S STOCK
+
+MVP mobile-first de gestion de marchandises pour grossistes et dépôts d'Afrique de l'Ouest.
+
+## Fonctions disponibles
+
+- tableau de bord avec valeur du stock et alertes ;
+- catalogue filtrable de produits ;
+- ajout d'une nouvelle référence ;
+- entrées et sorties avec mise à jour immédiate ;
+- journal des mouvements ;
+- interface responsive pour smartphone ;
+- schéma Supabase multi-entreprises avec RLS.
+
+Les données de l'interface sont actuellement des données de démonstration locales. Le fichier `supabase/schema.sql` prépare la connexion sécurisée à la base réelle.
+
+## Démarrage
+
+```bash
+npm install
+npm run dev
+```
+
+Ouvrez ensuite `http://localhost:3000`.
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+```

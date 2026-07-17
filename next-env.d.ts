@@ -1,9 +1,6 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
 
-export default defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  globalIgnores([".next/**", "next-env.d.ts"]),
-]);
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
