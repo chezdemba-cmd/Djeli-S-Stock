@@ -7,7 +7,7 @@ import {
   WifiOff, Wifi, RefreshCw
 } from "lucide-react";
 import { processSale, SaleItemInput } from "../lib/db/business"; // Server Actions
-
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 type Product = { id: string; name: string; sku: string; category: string; unit: string; quantity: number; minStock: number; purchasePrice: number; salePrice: number; };
 type Movement = { id: string; product: string; type: "Entrée" | "Sortie" | "Vente"; quantity: number; date: string; author: string; };
 type Customer = { id: string; name: string; phone: string; city: string; balance: number; dueDate: string; status: "À jour" | "À relancer" | "En retard"; };
@@ -22,6 +22,23 @@ const initialCustomers: Customer[] = [
 ];
 
 const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
+
+const salesData = [
+  { date: '11 Juil', ventes: 450000 },
+  { date: '12 Juil', ventes: 520000 },
+  { date: '13 Juil', ventes: 380000 },
+  { date: '14 Juil', ventes: 610000 },
+  { date: '15 Juil', ventes: 590000 },
+  { date: '16 Juil', ventes: 720000 },
+  { date: '17 Juil', ventes: 850000 },
+];
+
+const stockData = [
+  { name: 'Céréales', value: 5148000, color: '#173f35' },
+  { name: 'Huiles', value: 609000, color: '#246452' },
+  { name: 'Boissons', value: 340000, color: '#d7a83f' },
+  { name: 'Autres', value: 120000, color: '#e7e8e3' },
+];
 
 export default function Home() {
   const [products, setProducts] = useState(initialProducts);
@@ -209,6 +226,44 @@ export default function Home() {
             <Metric icon={ArrowUpRight} tone="gold" label="Marge potentielle" value={money.format(projectedMargin)} detail="Sur le stock disponible" />
             <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={money.format(totalDebt)} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente`} />
             <Metric icon={AlertTriangle} tone="red" label="Alertes de stock" value={String(lowStock.length)} detail="À réapprovisionner" />
+          </section>
+
+          <section className="charts-grid">
+            <div className="chart-card">
+              <h3>Évolution du Chiffre d'Affaires (7 derniers jours)</h3>
+              <div style={{ width: '100%', height: 250 }}>
+                <ResponsiveContainer>
+                  <AreaChart data={salesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVentes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#173f35" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#173f35" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8e3" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6c7773' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6c7773' }} tickFormatter={(val) => `${val / 1000}k`} />
+                    <Tooltip formatter={(value: any) => money.format(Number(value))} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Area type="monotone" dataKey="ventes" stroke="#173f35" strokeWidth={3} fillOpacity={1} fill="url(#colorVentes)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Répartition de la valeur du Stock</h3>
+              <div style={{ width: '100%', height: 250 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={stockData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                      {stockData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => money.format(Number(value))} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </section>
         </>}
 
