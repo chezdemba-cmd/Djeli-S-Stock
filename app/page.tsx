@@ -6,7 +6,7 @@ import {
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
   WifiOff, Wifi, RefreshCw
 } from "lucide-react";
-import { processSale, SaleItemInput } from "../lib/db/business"; // Server Actions
+import { processSale, SaleItemInput, createCustomer, createStore } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { createClient } from "../lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -99,6 +99,26 @@ export default function Home() {
           localStorage.setItem('djelis_products', JSON.stringify(mapped));
         }
 
+        const { data: customersData } = await supabase.from('customers').select('*').eq('active', true);
+        if (customersData) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mappedCustomers: Customer[] = customersData.map((c: any) => ({
+            id: c.id, name: c.name, phone: c.phone || '', city: c.city || '', balance: 0, status: 'À jour', dueDate: ''
+          }));
+          setCustomers(mappedCustomers);
+          localStorage.setItem('djelis_customers', JSON.stringify(mappedCustomers));
+        }
+
+        const { data: storesData } = await supabase.from('stores').select('*').eq('active', true);
+        if (storesData) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mappedStores: Depot[] = storesData.map((s: any) => ({
+            id: s.id, name: s.name, city: s.city || '', manager: 'Gérant', references: 0, stockValue: 0
+          }));
+          setDepots(mappedStores);
+          localStorage.setItem('djelis_stores', JSON.stringify(mappedStores));
+        }
+
         const { data: membership } = await supabase.from('memberships').select('store_id').eq('user_id', session.user.id).limit(1).single();
         if (membership) {
           const m = membership as { store_id: string };
@@ -107,6 +127,8 @@ export default function Home() {
         }
       } else {
         setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
+        setCustomers(JSON.parse(localStorage.getItem('djelis_customers') || "[]"));
+        setDepots(JSON.parse(localStorage.getItem('djelis_stores') || "[]"));
         setStoreId(localStorage.getItem('djelis_store_id') || "mock-store-id");
       }
       setSessionLoading(false);
@@ -258,6 +280,77 @@ export default function Home() {
     }
   }
 
+  async function handleCreateCustomer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("La création de client nécessite une connexion internet pour le moment.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      name: formData.get("name") as string,
+      phone: formData.get("phone") as string,
+      city: formData.get("city") as string,
+    };
+    
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const newCustomer = await createCustomer(payload);
+      const mappedCustomer: Customer = {
+        id: newCustomer.id,
+        name: newCustomer.name,
+        phone: newCustomer.phone || '',
+        city: newCustomer.city || '',
+        balance: 0,
+        status: 'À jour',
+        dueDate: ''
+      };
+      setCustomers(current => [mappedCustomer, ...current]);
+      localStorage.setItem('djelis_customers', JSON.stringify([mappedCustomer, ...customers]));
+      setModal(null);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCreateDepot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("La création de dépôt nécessite une connexion internet pour le moment.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      name: formData.get("name") as string,
+      city: formData.get("city") as string,
+      allow_negative_stock: formData.get("allow_negative_stock") === "on",
+    };
+    
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const newStore = await createStore(payload);
+      const mappedStore: Depot = {
+        id: newStore.id,
+        name: newStore.name,
+        city: newStore.city || '',
+        manager: 'Gérant',
+        references: 0,
+        stockValue: 0
+      };
+      setDepots(current => [mappedStore, ...current]);
+      localStorage.setItem('djelis_stores', JSON.stringify([mappedStore, ...depots]));
+      setModal(null);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function queueOfflineAction(payload: any) {
     const action = { type: "SALE", payload, timestamp: Date.now() };
@@ -319,7 +412,7 @@ export default function Home() {
               <h3>Évolution du Chiffre d&apos;Affaires (7 derniers jours)</h3>
               <div style={{ width: '100%', height: 250 }}>
                 <ResponsiveContainer>
-                  <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorVentes" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#173f35" stopOpacity={0.3}/>
@@ -362,14 +455,26 @@ export default function Home() {
           <ProductTable products={filtered} />
         </section>}
         {tab === "Mouvements" && <section className="panel page-panel"><MovementTable movements={movements} /></section>}
-        {tab === "Dépôts" && <section className="panel page-panel"><DepotTable depots={depots} /></section>}
-        {tab === "Clients" && <section className="panel page-panel"><CustomerTable customers={customers} /></section>}
+        {tab === "Dépôts" && <section className="panel page-panel">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button className="primary" onClick={() => setModal("depot")}>+ Nouveau Dépôt</button>
+          </div>
+          <DepotTable depots={depots} />
+        </section>}
+        {tab === "Clients" && <section className="panel page-panel">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button className="primary" onClick={() => setModal("customer")}>+ Nouveau Client</button>
+          </div>
+          <CustomerTable customers={customers} />
+        </section>}
       </section>
 
       {modal && <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
         <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
           <button className="modal-close" onClick={() => setModal(null)}><X size={20} /></button>
           {modal === "product" && <ProductForm onClose={() => setModal(null)} />}
+          {modal === "customer" && <CustomerForm onClose={() => setModal(null)} onSubmit={handleCreateCustomer} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
+          {modal === "depot" && <DepotForm onClose={() => setModal(null)} onSubmit={handleCreateDepot} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "sale" && <SaleForm isOnline={isOnline} products={products} customers={customers} isSubmitting={isSubmitting} errorMsg={errorMsg} onSubmit={handleSale} />}
           {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} onClose={() => setModal(null)} money={money} />}
         </div>
@@ -493,5 +598,41 @@ function ReceiptModal({ receipt, onClose, money }: { receipt: any, onClose: () =
         Envoyer sur WhatsApp
       </a>
     </div>
+  </>;
+}
+
+function CustomerForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
+  return <>
+    <div className="modal-heading"><div className="modal-symbol"><Users /></div><div><h2>Nouveau Client</h2><p>Ajouter un client à la base.</p></div></div>
+    {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+    <form onSubmit={onSubmit}>
+      <label className="wide">Nom du client <input required type="text" name="name" placeholder="Ex: Boutique Diallo" /></label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="wide">
+        <label>Téléphone <input type="tel" name="phone" placeholder="Ex: 01 23 45 67 89" /></label>
+        <label>Ville <input type="text" name="city" placeholder="Ex: Bamako" /></label>
+      </div>
+      <div className="form-actions wide" style={{ marginTop: '1rem' }}>
+        <button type="button" onClick={onClose}>Annuler</button>
+        <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Création..." : "Ajouter le client"}</button>
+      </div>
+    </form>
+  </>;
+}
+
+function DepotForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
+  return <>
+    <div className="modal-heading"><div className="modal-symbol"><Store /></div><div><h2>Nouveau Dépôt</h2><p>Ajouter un dépôt ou une boutique.</p></div></div>
+    {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+    <form onSubmit={onSubmit}>
+      <label className="wide">Nom du dépôt <input required type="text" name="name" placeholder="Ex: Magasin Central" /></label>
+      <label className="wide">Ville <input type="text" name="city" placeholder="Ex: Bamako" /></label>
+      <label className="wide" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'normal', cursor: 'pointer' }}>
+        <input type="checkbox" name="allow_negative_stock" /> Autoriser le stock négatif (Vente sans stock préalable)
+      </label>
+      <div className="form-actions wide" style={{ marginTop: '1rem' }}>
+        <button type="button" onClick={onClose}>Annuler</button>
+        <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Création..." : "Ajouter le dépôt"}</button>
+      </div>
+    </form>
   </>;
 }

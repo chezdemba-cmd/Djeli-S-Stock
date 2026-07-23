@@ -114,3 +114,73 @@ export async function payReceivable(data: {
   if (error) throw new Error(error.message);
   return result;
 }
+
+const CreateCustomerSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().optional(),
+  city: z.string().optional(),
+});
+
+export async function createCustomer(data: {
+  name: string;
+  phone?: string;
+  city?: string;
+}) {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error("Non autorisé");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
+  const orgList = orgs as unknown as string[];
+  const orgId = orgList && orgList.length > 0 ? orgList[0] : null;
+  if (!orgId) throw new Error("Aucune organisation trouvée");
+
+  const parsedData = CreateCustomerSchema.parse(data);
+
+  const { data: result, error } = await supabase.from('customers').insert({
+    organization_id: orgId,
+    name: parsedData.name,
+    phone: parsedData.phone,
+    city: parsedData.city,
+    active: true
+  }).select().single();
+
+  if (error) throw new Error(error.message);
+  return result;
+}
+
+const CreateStoreSchema = z.object({
+  name: z.string().min(1),
+  city: z.string().optional(),
+  allow_negative_stock: z.boolean().default(false),
+});
+
+export async function createStore(data: {
+  name: string;
+  city?: string;
+  allow_negative_stock?: boolean;
+}) {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error("Non autorisé");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
+  const orgList = orgs as unknown as string[];
+  const orgId = orgList && orgList.length > 0 ? orgList[0] : null;
+  if (!orgId) throw new Error("Aucune organisation trouvée");
+
+  const parsedData = CreateStoreSchema.parse(data);
+
+  const { data: result, error } = await supabase.from('stores').insert({
+    organization_id: orgId,
+    name: parsedData.name,
+    city: parsedData.city,
+    allow_negative_stock: parsedData.allow_negative_stock,
+    active: true
+  }).select().single();
+
+  if (error) throw new Error(error.message);
+  return result;
+}
