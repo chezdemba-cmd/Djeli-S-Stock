@@ -4,7 +4,7 @@ import { FormEvent, useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, Boxes,
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
-  WifiOff, Wifi, RefreshCw
+  WifiOff, Wifi, RefreshCw, Settings
 } from "lucide-react";
 import { processSale, SaleItemInput, createCustomer, createStore } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
@@ -74,6 +74,9 @@ export default function Home() {
   const [lastSync, setLastSync] = useState("Jamais");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [storeId, setStoreId] = useState<string>("mock-store-id");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [accessibleOrgs, setAccessibleOrgs] = useState<{id: string, name: string}[]>([]);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
@@ -87,7 +90,40 @@ export default function Home() {
       setIsOnline(online);
 
       if (online) {
-        const { data: productsData } = await supabase.from('products').select('*');
+        let currentActiveOrgId = localStorage.getItem('djelis_active_org');
+        const { data: profile } = await supabase.from('profiles').select('is_super_admin').eq('id', session.user.id).single();
+        const superAdmin = profile?.is_super_admin || false;
+        setIsSuperAdmin(superAdmin);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: accessibleOrgsData, error: orgsErr } = await (supabase.rpc as any)('get_accessible_orgs');
+        if (!orgsErr && accessibleOrgsData && accessibleOrgsData.length > 0) {
+          setAccessibleOrgs(accessibleOrgsData);
+          if (!currentActiveOrgId || !accessibleOrgsData.find((o: any) => o.id === currentActiveOrgId)) {
+            currentActiveOrgId = accessibleOrgsData[0].id;
+          }
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: orgs } = await (supabase.rpc as any)('current_orgs');
+          currentActiveOrgId = orgs && orgs.length > 0 ? orgs[0] : null;
+        }
+
+        if (currentActiveOrgId) {
+          setActiveOrgId(currentActiveOrgId);
+          localStorage.setItem('djelis_active_org', currentActiveOrgId);
+        }
+
+        let productsQuery = supabase.from('products').select('*');
+        let customersQuery = supabase.from('customers').select('*').eq('active', true);
+        let storesQuery = supabase.from('stores').select('*').eq('active', true);
+
+        if (currentActiveOrgId) {
+          productsQuery = productsQuery.eq('organization_id', currentActiveOrgId);
+          customersQuery = customersQuery.eq('organization_id', currentActiveOrgId);
+          storesQuery = storesQuery.eq('organization_id', currentActiveOrgId);
+        }
+
+        const { data: productsData } = await productsQuery;
         if (productsData && productsData.length > 0) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mapped: Product[] = productsData.map((p: any) => ({
@@ -99,7 +135,7 @@ export default function Home() {
           localStorage.setItem('djelis_products', JSON.stringify(mapped));
         }
 
-        const { data: customersData } = await supabase.from('customers').select('*').eq('active', true);
+        const { data: customersData } = await customersQuery;
         if (customersData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mappedCustomers: Customer[] = customersData.map((c: any) => ({
@@ -109,7 +145,7 @@ export default function Home() {
           localStorage.setItem('djelis_customers', JSON.stringify(mappedCustomers));
         }
 
-        const { data: storesData } = await supabase.from('stores').select('*').eq('active', true);
+        const { data: storesData } = await storesQuery;
         if (storesData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mappedStores: Depot[] = storesData.map((s: any) => ({
@@ -240,7 +276,8 @@ export default function Home() {
       paid_amount: paidAmount,
       payment_method: method,
       customer_id: customerId || undefined,
-      idempotency_key
+      idempotency_key,
+      organization_id: activeOrgId!
     };
 
     try {
@@ -291,6 +328,7 @@ export default function Home() {
       name: formData.get("name") as string,
       phone: formData.get("phone") as string,
       city: formData.get("city") as string,
+      organization_id: activeOrgId!
     };
     
     setIsSubmitting(true);
@@ -328,6 +366,7 @@ export default function Home() {
       name: formData.get("name") as string,
       city: formData.get("city") as string,
       allow_negative_stock: formData.get("allow_negative_stock") === "on",
+      organization_id: activeOrgId!
     };
     
     setIsSubmitting(true);
@@ -367,6 +406,7 @@ export default function Home() {
     { label: "Produits", icon: Boxes },
     { label: "Mouvements", icon: ArrowDownLeft },
     { label: "Clients", icon: Users },
+    ...(isSuperAdmin ? [{ label: "SaaS Admin", icon: Settings }] : [])
   ];
 
   if (sessionLoading) {
@@ -394,6 +434,25 @@ export default function Home() {
               <small>{offlineQueue.length > 0 ? `${offlineQueue.length} action(s) en attente` : `Sync: ${lastSync}`}</small>
             </div>
           </div>
+          
+          {accessibleOrgs.length > 1 && (
+            <div className="org-switcher" style={{ marginRight: '1rem' }}>
+              <select 
+                value={activeOrgId || ''} 
+                onChange={(e) => {
+                  const newOrgId = e.target.value;
+                  setActiveOrgId(newOrgId);
+                  localStorage.setItem('djelis_active_org', newOrgId);
+                  window.location.reload();
+                }}
+                style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', fontSize: '0.9rem', outline: 'none' }}
+              >
+                {accessibleOrgs.map(org => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="header-actions">
             <button className="primary" onClick={() => setModal("sale")}><ShoppingCart size={18} />Vendre</button>
@@ -468,6 +527,32 @@ export default function Home() {
             <button className="primary" onClick={() => setModal("customer")}>+ Nouveau Client</button>
           </div>
           <CustomerTable customers={customers} />
+        </section>}
+        {tab === "SaaS Admin" && isSuperAdmin && <section className="panel page-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>Administration Multi-Clients</h2>
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>Gérez les espaces de travail de vos clients.</p>
+            </div>
+            <button className="primary" onClick={() => alert('Bientôt disponible : Création de compte client')}>+ Nouvel Espace Client</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Nom du Client (Organisation)</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody>
+                {accessibleOrgs.map(org => (
+                  <tr key={org.id}>
+                    <td><small style={{ color: '#888' }}>{org.id.split('-')[0]}</small></td>
+                    <td><strong>{org.name}</strong></td>
+                    <td><span className="status ok">Actif</span></td>
+                    <td>
+                      <button className="button-secondary" onClick={() => { setActiveOrgId(org.id); localStorage.setItem('djelis_active_org', org.id); window.location.reload(); }} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>Basculer vers cette boutique</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>}
       </section>
 

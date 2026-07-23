@@ -52,6 +52,7 @@ export async function processSale(data: {
   customer_id?: string;
   due_date?: string;
   idempotency_key: string;
+  organization_id: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
@@ -60,14 +61,8 @@ export async function processSale(data: {
   // VALIDATION SECURISEE
   const parsedData = ProcessSaleSchema.parse(data);
 
-  // In a real scenario we fetch the org from profile/membership
-  // For MVP we can assume the user's first org. Let's mock it for the test if not passed, 
-  // or retrieve it properly.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
-  const orgList = orgs as unknown as string[];
-  const orgId = orgList && orgList.length > 0 ? orgList[0] : null;
-  if (!orgId) throw new Error("Aucune organisation trouvée");
+  const orgId = data.organization_id;
+  if (!orgId) throw new Error("Organisation manquante");
 
   const payload = {
     ...parsedData,
@@ -94,14 +89,14 @@ export async function payReceivable(data: {
   amount: number;
   payment_method: string;
   idempotency_key: string;
+  organization_id: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error("Non autorisé");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
-  const orgId = orgs && orgs.length > 0 ? orgs[0] : null;
+  const orgId = data.organization_id;
+  if (!orgId) throw new Error("Organisation manquante");
 
   const payload = {
     ...data,
@@ -125,16 +120,14 @@ export async function createCustomer(data: {
   name: string;
   phone?: string;
   city?: string;
+  organization_id: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error("Non autorisé");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
-  const orgList = orgs as unknown as string[];
-  const orgId = orgList && orgList.length > 0 ? orgList[0] : null;
-  if (!orgId) throw new Error("Aucune organisation trouvée");
+  const orgId = data.organization_id;
+  if (!orgId) throw new Error("Organisation manquante");
 
   const parsedData = CreateCustomerSchema.parse(data);
 
@@ -161,16 +154,14 @@ export async function createStore(data: {
   name: string;
   city?: string;
   allow_negative_stock?: boolean;
+  organization_id: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error("Non autorisé");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: orgs } = await (supabase.rpc as any)('current_orgs');
-  const orgList = orgs as unknown as string[];
-  const orgId = orgList && orgList.length > 0 ? orgList[0] : null;
-  if (!orgId) throw new Error("Aucune organisation trouvée");
+  const orgId = data.organization_id;
+  if (!orgId) throw new Error("Organisation manquante");
 
   const parsedData = CreateStoreSchema.parse(data);
 
