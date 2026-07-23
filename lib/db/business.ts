@@ -57,7 +57,15 @@ async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Pro
     if (firstOrg && firstOrg.id) return firstOrg.id;
   } catch {}
 
-  // Si aucune organisation n'existe, en créer une automatiquement sur le serveur
+  // Auto-création via la fonction RPC sécurisée (bootstrap)
+  try {
+    const { data: rpcRes } = await supabase.rpc('bootstrap_user_organization', { p_name: "Ma Boutique Principale" });
+    if (rpcRes && rpcRes.success && rpcRes.org_id) {
+      return rpcRes.org_id;
+    }
+  } catch {}
+
+  // Fallback 2: via createClientWorkspace
   try {
     const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
     if (autoWs && autoWs.org && autoWs.org.id) {
@@ -220,6 +228,16 @@ export async function createClientWorkspace(data: { name: string }) {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { success: false, error: "Non autorisé" };
 
+  // Essai 1: RPC bootstrap sécurisé
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rpcRes, error: rpcErr } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: data.name });
+    if (!rpcErr && rpcRes && rpcRes.success) {
+      return { success: true, org: { id: rpcRes.org_id, name: data.name } };
+    }
+  } catch {}
+
+  // Essai 2: Insertion directe
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: org, error: orgErr } = await (supabase as any).from('organizations').insert({ name: data.name }).select().single();
   if (orgErr) return { success: false, error: "Erreur Supabase (organizations): " + orgErr.message };
