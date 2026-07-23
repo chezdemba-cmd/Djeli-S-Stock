@@ -9,6 +9,9 @@ UPDATE public.profiles
 SET is_super_admin = true 
 WHERE id IN (SELECT id FROM auth.users WHERE email = 'chezdemba@gmail.com');
 
+-- 0.5. Permettre aux utilisateurs de lire leur propre profil (crucial pour vérifier is_super_admin dans les autres règles)
+CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT USING (id = auth.uid());
+
 -- 1. Customers (Clients)
 CREATE POLICY "Org isolation select customers" ON public.customers FOR SELECT USING (organization_id IN (SELECT public.current_orgs()));
 CREATE POLICY "Org isolation insert customers" ON public.customers FOR INSERT WITH CHECK (organization_id IN (SELECT public.current_orgs()));
