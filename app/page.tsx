@@ -687,14 +687,16 @@ export default function Home() {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Entreprise / Organisation</span>
-              <button 
-                type="button" 
-                onClick={() => setModal('new_client')}
-                title="Créer une nouvelle entreprise"
-                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
-              >
-                + Créer
-              </button>
+              {isSuperAdmin && (
+                <button 
+                  type="button" 
+                  onClick={() => setModal('new_client')}
+                  title="Créer une nouvelle entreprise"
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
+                >
+                  + Créer
+                </button>
+              )}
             </div>
             {accessibleOrgs.length > 1 ? (
               <select 
@@ -733,24 +735,20 @@ export default function Home() {
                 + Créer
               </button>
             </div>
-            {depots.length > 1 ? (
-              <select 
-                value={storeId}
-                onChange={(e) => {
-                  setStoreId(e.target.value);
-                  localStorage.setItem('djelis_store_id', e.target.value);
-                }}
-                style={{ 
-                  background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
-                  width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
-                  fontSize: '0.9rem', fontFamily: 'inherit'
-                }}
-              >
-                {depots.map(d => <option key={d.id} value={d.id} style={{ color: '#333' }}>{d.name}</option>)}
-              </select>
-            ) : (
-              <strong>{depots.length > 0 ? depots[0].name : "Dépôt Principal"}</strong>
-            )}
+            <select 
+              value={storeId}
+              onChange={(e) => {
+                setStoreId(e.target.value);
+                localStorage.setItem('djelis_store_id', e.target.value);
+              }}
+              style={{ 
+                background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
+                width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
+                fontSize: '0.9rem', fontFamily: 'inherit'
+              }}
+            >
+              {depots.map(d => <option key={d.id} value={d.id} style={{ color: '#333' }}>{d.name}</option>)}
+            </select>
           </div>
           {depots.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
         </div>
