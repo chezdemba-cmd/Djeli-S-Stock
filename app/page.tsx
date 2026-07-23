@@ -6,7 +6,7 @@ import {
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
   WifiOff, Wifi, RefreshCw, Settings
 } from "lucide-react";
-import { processSale, createCustomer, createStore, createClientWorkspace } from "../lib/db/business"; // Server Actions
+import { processSale, createCustomer, createStore, createClientWorkspace, createProduct, addStockMovement, payReceivable } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { createClient } from "../lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -61,7 +61,8 @@ export default function Home() {
   const [depots, setDepots] = useState<Depot[]>([]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Tableau de bord");
-  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | "receipt" | "new_client" | null>(null);
+  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | "receipt" | "new_client" | "inflow" | "payment" | null>(null);
+  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<Customer | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [mobileNav, setMobileNav] = useState(false);
@@ -124,26 +125,72 @@ export default function Home() {
           storesQuery = storesQuery.eq('organization_id', currentActiveOrgId);
         }
 
+        // Charger les quantités de stock réelles depuis la vue current_stock
+        const stockMap: Record<string, number> = {};
+        if (currentActiveOrgId) {
+          const { data: stockData } = await supabase.from('current_stock').select('*').eq('organization_id', currentActiveOrgId);
+          if (stockData) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            stockData.forEach((s: any) => {
+              stockMap[s.product_id] = (stockMap[s.product_id] || 0) + Number(s.quantity);
+            });
+          }
+        }
+
         const { data: productsData } = await productsQuery;
-        if (productsData && productsData.length > 0) {
+        if (productsData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mapped: Product[] = productsData.map((p: any) => ({
             id: p.id, name: p.name, sku: p.sku, category: p.category, unit: p.unit, 
-            quantity: 100, 
+            quantity: stockMap[p.id] ?? 0, 
             minStock: p.min_stock, purchasePrice: p.purchase_price, salePrice: p.sale_price
           }));
           setProducts(mapped);
           localStorage.setItem('djelis_products', JSON.stringify(mapped));
         }
 
+        // Charger les créances réelles
+        const debtMap: Record<string, number> = {};
+        if (currentActiveOrgId) {
+          const { data: receivablesData } = await supabase.from('receivables').select('customer_id, amount, amount_paid, status').eq('organization_id', currentActiveOrgId).neq('status', 'paid');
+          if (receivablesData) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            receivablesData.forEach((r: any) => {
+              const due = Number(r.amount) - Number(r.amount_paid);
+              if (due > 0) debtMap[r.customer_id] = (debtMap[r.customer_id] || 0) + due;
+            });
+          }
+        }
+
         const { data: customersData } = await customersQuery;
         if (customersData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const mappedCustomers: Customer[] = customersData.map((c: any) => ({
-            id: c.id, name: c.name, phone: c.phone || '', city: c.city || '', balance: 0, status: 'À jour', dueDate: ''
-          }));
+          const mappedCustomers: Customer[] = customersData.map((c: any) => {
+            const bal = debtMap[c.id] || 0;
+            return {
+              id: c.id, name: c.name, phone: c.phone || '', city: c.city || '', 
+              balance: bal, status: bal > 0 ? 'À relancer' : 'À jour', dueDate: ''
+            };
+          });
           setCustomers(mappedCustomers);
           localStorage.setItem('djelis_customers', JSON.stringify(mappedCustomers));
+        }
+
+        // Charger l'historique réel des mouvements
+        if (currentActiveOrgId) {
+          const { data: movsData } = await supabase.from('inventory_movements').select('id, movement_type, quantity, created_at, products(name)').eq('organization_id', currentActiveOrgId).order('created_at', { ascending: false }).limit(50);
+          if (movsData) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const mappedMovs: Movement[] = movsData.map((m: any) => ({
+              id: m.id,
+              product: m.products?.name || 'Produit',
+              type: m.movement_type === 'sale' ? 'Vente' : (m.movement_type === 'purchase' ? 'Entrée' : 'Sortie'),
+              quantity: Math.abs(Number(m.quantity)),
+              date: new Date(m.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+              author: 'Système'
+            }));
+            setMovements(mappedMovs);
+          }
         }
 
         let finalStores: Depot[] = [];
@@ -402,6 +449,146 @@ export default function Home() {
     }
   }
 
+  async function handleCreateProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("La création de produit nécessite une connexion internet.");
+      setIsSubmitting(false);
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      name: formData.get("name") as string,
+      category: formData.get("category") as string,
+      unit: formData.get("unit") as string,
+      purchase_price: Number(formData.get("purchase_price")),
+      sale_price: Number(formData.get("sale_price")),
+      min_stock: Number(formData.get("min_stock") || 0),
+      initial_quantity: Number(formData.get("initial_quantity") || 0),
+      store_id: storeId,
+      organization_id: activeOrgId!
+    };
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await createProduct(payload) as any;
+      if (response && response.error) {
+        setErrorMsg(response.error);
+      } else {
+        const p = response.data;
+        const mappedProduct: Product = {
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          category: p.category,
+          unit: p.unit,
+          quantity: payload.initial_quantity,
+          minStock: p.min_stock,
+          purchasePrice: p.purchase_price,
+          salePrice: p.sale_price
+        };
+        setProducts(current => [mappedProduct, ...current]);
+        localStorage.setItem('djelis_products', JSON.stringify([mappedProduct, ...products]));
+        setModal(null);
+      }
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleAddStockMovementForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("L'enregistrement de mouvement nécessite une connexion internet.");
+      setIsSubmitting(false);
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const productId = formData.get("product_id") as string;
+    const quantity = Number(formData.get("quantity"));
+    const payload = {
+      store_id: storeId,
+      product_id: productId,
+      quantity: quantity,
+      movement_type: 'purchase' as const,
+      organization_id: activeOrgId!
+    };
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await addStockMovement(payload) as any;
+      if (response && response.error) {
+        setErrorMsg(response.error);
+      } else {
+        setProducts(current => current.map(p => p.id === productId ? { ...p, quantity: p.quantity + quantity } : p));
+        const prd = products.find(p => p.id === productId);
+        setMovements(current => [{
+          id: String(Date.now()),
+          product: prd?.name || 'Produit',
+          type: 'Entrée',
+          quantity,
+          date: 'À l’instant',
+          author: 'Vous'
+        }, ...current]);
+        setModal(null);
+      }
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePayCustomerReceivableForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("Le versement nécessite une connexion internet.");
+      setIsSubmitting(false);
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const customerId = formData.get("customer_id") as string;
+    const amount = Number(formData.get("amount"));
+    const method = formData.get("method") as string;
+
+    const payload = {
+      receivable_id: customerId,
+      amount: amount,
+      payment_method: method,
+      idempotency_key: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      organization_id: activeOrgId!
+    };
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await payReceivable(payload) as any;
+      if (response && response.error) {
+        setErrorMsg(response.error);
+      } else {
+        setCustomers(current => current.map(c => {
+          if (c.id === customerId) {
+            const newBal = Math.max(0, c.balance - amount);
+            return { ...c, balance: newBal, status: newBal > 0 ? 'À relancer' : 'À jour' };
+          }
+          return c;
+        }));
+        setModal(null);
+      }
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleCreateClientWorkspaceForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isOnline) {
@@ -521,6 +708,20 @@ export default function Home() {
               <strong>{isOnline ? "En ligne" : "Hors ligne"}</strong>
               <small>{offlineQueue.length > 0 ? `${offlineQueue.length} action(s) en attente` : `Sync: ${lastSync}`}</small>
             </div>
+            <button 
+              title="Réinitialiser le cache PWA & Forcer la mise à jour"
+              onClick={async () => {
+                if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  for (const r of regs) await r.unregister();
+                }
+                localStorage.clear();
+                window.location.reload();
+              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', padding: '2px 4px', marginLeft: '4px' }}
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
 
 
@@ -580,12 +781,18 @@ export default function Home() {
         </>}
 
         {tab === "Produits" && <section className="panel page-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button className="button-secondary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Arrivage / Entrée</button>
             <button className="primary" onClick={() => setModal("product")}>+ Ajouter un produit</button>
           </div>
           <ProductTable products={filtered} />
         </section>}
-        {tab === "Mouvements" && <section className="panel page-panel"><MovementTable movements={movements} /></section>}
+        {tab === "Mouvements" && <section className="panel page-panel">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button className="primary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Enregistrer un Arrivage</button>
+          </div>
+          <MovementTable movements={movements} />
+        </section>}
         {tab === "Dépôts" && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button className="primary" onClick={() => setModal("depot")}>+ Nouveau Dépôt</button>
@@ -596,7 +803,7 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button className="primary" onClick={() => setModal("customer")}>+ Nouveau Client</button>
           </div>
-          <CustomerTable customers={customers} />
+          <CustomerTable customers={customers} onPay={(c) => { setSelectedCustomerForPayment(c); setModal("payment"); }} />
         </section>}
         {tab === "SaaS Admin" && isSuperAdmin && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
@@ -629,7 +836,9 @@ export default function Home() {
       {modal && <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
         <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
           <button className="modal-close" onClick={() => setModal(null)}><X size={20} /></button>
-          {modal === "product" && <ProductForm onClose={() => setModal(null)} />}
+          {modal === "product" && <ProductForm onClose={() => setModal(null)} onSubmit={handleCreateProduct} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
+          {modal === "inflow" && <StockInflowForm products={products} onClose={() => setModal(null)} onSubmit={handleAddStockMovementForm} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
+          {modal === "payment" && selectedCustomerForPayment && <PaymentForm customer={selectedCustomerForPayment} onClose={() => setModal(null)} onSubmit={handlePayCustomerReceivableForm} isSubmitting={isSubmitting} errorMsg={errorMsg} money={money} />}
           {modal === "customer" && <CustomerForm onClose={() => setModal(null)} onSubmit={handleCreateCustomer} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "depot" && <DepotForm onClose={() => setModal(null)} onSubmit={handleCreateDepot} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "sale" && <SaleForm isOnline={isOnline} products={products} customers={customers} isSubmitting={isSubmitting} errorMsg={errorMsg} onSubmit={handleSale} />}
@@ -659,9 +868,9 @@ function DepotTable({ depots }: { depots: Depot[] }) {
   return <div className="table-wrap"><table><thead><tr><th>Dépôt</th><th>Ville</th><th>Gérant</th><th>Références</th><th>Valeur du Stock</th></tr></thead><tbody>{depots.map((d) => <tr key={d.id}><td><strong>{d.name}</strong></td><td>{d.city}</td><td>{d.manager}</td><td>{d.references}</td><td>{money.format(d.stockValue)}</td></tr>)}</tbody></table></div>;
 }
 
-function CustomerTable({ customers }: { customers: Customer[] }) {
+function CustomerTable({ customers, onPay }: { customers: Customer[], onPay: (c: Customer) => void }) {
   if (customers.length === 0) return <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>Aucun client enregistré.</div>;
-  return <div className="table-wrap"><table><thead><tr><th>Client</th><th>Contact</th><th>Ville</th><th>Créance</th><th>Statut</th></tr></thead><tbody>{customers.map((c) => <tr key={c.id}><td><strong>{c.name}</strong></td><td>{c.phone}</td><td>{c.city}</td><td>{money.format(c.balance)}</td><td><span className={`status ${c.balance > 0 ? 'danger' : 'ok'}`}>{c.balance > 0 ? c.status : 'À jour'}</span></td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap"><table><thead><tr><th>Client</th><th>Contact</th><th>Ville</th><th>Créance</th><th>Statut</th><th>Action</th></tr></thead><tbody>{customers.map((c) => <tr key={c.id}><td><strong>{c.name}</strong></td><td>{c.phone}</td><td>{c.city}</td><td><strong style={{ color: c.balance > 0 ? '#d32f2f' : 'inherit' }}>{money.format(c.balance)}</strong></td><td><span className={`status ${c.balance > 0 ? 'danger' : 'ok'}`}>{c.balance > 0 ? c.status : 'À jour'}</span></td><td>{c.balance > 0 ? <button className="button-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }} onClick={() => onPay(c)}>💰 Rembourser</button> : <span style={{ color: '#888', fontSize: '0.8rem' }}>-</span>}</td></tr>)}</tbody></table></div>;
 }
 
 function SaleForm({ products, customers, onSubmit, isSubmitting, errorMsg, isOnline }: { products: Product[], customers: Customer[], onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null, isOnline: boolean }) {
@@ -713,26 +922,91 @@ function SaleForm({ products, customers, onSubmit, isSubmitting, errorMsg, isOnl
   </>;
 }
 
-function ProductForm({ onClose }: { onClose: () => void }) {
+function ProductForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
   return (
     <>
       <div className="modal-heading">
         <div className="modal-symbol"><Boxes /></div>
         <div><h2>Nouveau Produit</h2><p>Ajouter une référence au catalogue.</p></div>
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); onClose(); alert("Produit ajouté !"); }}>
-        <label className="wide">Nom du produit <input required type="text" placeholder="Ex: Riz Parfumé" /></label>
+      {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+      <form onSubmit={onSubmit}>
+        <label className="wide">Nom du produit <input required type="text" name="name" placeholder="Ex: Riz Parfumé 25kg" /></label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="wide">
-          <label>Catégorie <input required type="text" placeholder="Ex: Céréales" /></label>
-          <label>Unité <input required type="text" placeholder="Ex: Sac, Kg, Carton" /></label>
+          <label>Catégorie <input required type="text" name="category" placeholder="Ex: Céréales" defaultValue="Général" /></label>
+          <label>Unité <input required type="text" name="unit" placeholder="Ex: Sac, Kg, Carton" defaultValue="Sac" /></label>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="wide">
-          <label>Prix d&apos;Achat (FCFA) <input required type="number" min="0" /></label>
-          <label>Prix de Vente (FCFA) <input required type="number" min="0" /></label>
+          <label>Prix d&apos;Achat (FCFA) <input required type="number" min="0" name="purchase_price" defaultValue="15000" /></label>
+          <label>Prix de Vente (FCFA) <input required type="number" min="0" name="sale_price" defaultValue="18000" /></label>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="wide" style={{ marginTop: '0.5rem' }}>
+          <label>Stock Initial <input type="number" min="0" name="initial_quantity" defaultValue="0" /></label>
+          <label>Alerte Stock Min. <input type="number" min="0" name="min_stock" defaultValue="5" /></label>
         </div>
         <div className="form-actions wide" style={{ marginTop: '1rem' }}>
           <button type="button" onClick={onClose}>Annuler</button>
-          <button className="primary" type="submit">Enregistrer le produit</button>
+          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Enregistrement..." : "Enregistrer le produit"}</button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function StockInflowForm({ products, onClose, onSubmit, isSubmitting, errorMsg }: { products: Product[], onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
+  return (
+    <>
+      <div className="modal-heading">
+        <div className="modal-symbol"><ArrowDownLeft /></div>
+        <div><h2>Entrée de Stock / Arrivage</h2><p>Enregistrer une livraison de marchandises.</p></div>
+      </div>
+      {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+      <form onSubmit={onSubmit}>
+        <label className="wide">Produit livré
+          <select name="product_id" required defaultValue="">
+            <option value="" disabled>Sélectionner un produit...</option>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name} (Stock actuel: {p.quantity})</option>)}
+          </select>
+        </label>
+        <label className="wide">Quantité reçue
+          <input required type="number" min="1" name="quantity" defaultValue="1" />
+        </label>
+        <div className="form-actions wide" style={{ marginTop: '1rem' }}>
+          <button type="button" onClick={onClose}>Annuler</button>
+          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Enregistrement..." : "Valider l'Arrivage"}</button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+function PaymentForm({ customer, onClose, onSubmit, isSubmitting, errorMsg, money }: { customer: Customer, onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null, money: Intl.NumberFormat }) {
+  return (
+    <>
+      <div className="modal-heading">
+        <div className="modal-symbol"><CircleDollarSign /></div>
+        <div><h2>Règlement de Créance</h2><p>Paiement pour {customer.name}</p></div>
+      </div>
+      {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+      <div style={{ background: '#fff8e1', borderLeft: '4px solid #ffa000', padding: '12px', borderRadius: '4px', marginBottom: '1rem' }}>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#5D4037' }}>Dette totale enregistrée :</p>
+        <strong style={{ fontSize: '1.2rem', color: '#d32f2f' }}>{money.format(customer.balance)}</strong>
+      </div>
+      <form onSubmit={onSubmit}>
+        <input type="hidden" name="customer_id" value={customer.id} />
+        <label className="wide">Montant versé (FCFA)
+          <input required type="number" min="1" max={customer.balance} name="amount" defaultValue={customer.balance} />
+        </label>
+        <label className="wide">Moyen de paiement
+          <select name="method" defaultValue="cash">
+            <option value="cash">Espèces</option>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="bank_transfer">Virement Bancaire</option>
+          </select>
+        </label>
+        <div className="form-actions wide" style={{ marginTop: '1rem' }}>
+          <button type="button" onClick={onClose}>Annuler</button>
+          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Validation..." : "Enregistrer le versement"}</button>
         </div>
       </form>
     </>

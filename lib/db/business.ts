@@ -56,13 +56,17 @@ export async function processSale(data: {
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Non autorisé");
+  if (!user.user) return { error: "Non autorisé" };
 
-  // VALIDATION SECURISEE
-  const parsedData = ProcessSaleSchema.parse(data);
+  let parsedData;
+  try {
+    parsedData = ProcessSaleSchema.parse(data);
+  } catch (e: any) {
+    return { error: "Données invalides : " + e.message };
+  }
 
   const orgId = data.organization_id;
-  if (!orgId) throw new Error("Organisation manquante");
+  if (!orgId) return { error: "Organisation manquante" };
 
   const payload = {
     ...parsedData,
@@ -73,15 +77,11 @@ export async function processSale(data: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: result, error } = await (supabase.rpc as any)('create_sale', { payload });
   if (error) {
-    if (error.message.includes('insuffisant')) {
-      throw new Error("Stock insuffisant pour valider cette vente.");
-    }
-    if (error.message.includes('obligatoire pour une vente à crédit')) {
-      throw new Error("Un client est obligatoire pour un crédit.");
-    }
-    throw new Error(error.message);
+    if (error.message.includes('insuffisant')) return { error: "Stock insuffisant pour valider cette vente." };
+    if (error.message.includes('obligatoire pour une vente à crédit')) return { error: "Un client est obligatoire pour un crédit." };
+    return { error: error.message };
   }
-  return result;
+  return { data: result };
 }
 
 export async function payReceivable(data: {
@@ -93,10 +93,10 @@ export async function payReceivable(data: {
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Non autorisé");
+  if (!user.user) return { error: "Non autorisé" };
 
   const orgId = data.organization_id;
-  if (!orgId) throw new Error("Organisation manquante");
+  if (!orgId) return { error: "Organisation manquante" };
 
   const payload = {
     ...data,
@@ -106,8 +106,8 @@ export async function payReceivable(data: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: result, error } = await (supabase.rpc as any)('pay_receivable', { payload });
-  if (error) throw new Error(error.message);
-  return result;
+  if (error) return { error: error.message };
+  return { data: result };
 }
 
 const CreateCustomerSchema = z.object({
@@ -163,12 +163,17 @@ export async function createStore(data: {
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Non autorisé");
+  if (!user.user) return { error: "Non autorisé" };
 
   const orgId = data.organization_id;
-  if (!orgId) throw new Error("Organisation manquante");
+  if (!orgId) return { error: "Organisation manquante" };
 
-  const parsedData = CreateStoreSchema.parse(data);
+  let parsedData;
+  try {
+    parsedData = CreateStoreSchema.parse(data);
+  } catch (e: any) {
+    return { error: "Données invalides : " + e.message };
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: result, error } = await (supabase as any).from('stores').insert({
@@ -179,8 +184,8 @@ export async function createStore(data: {
     active: true
   }).select().single();
 
-  if (error) throw new Error(error.message);
-  return result;
+  if (error) return { error: error.message };
+  return { data: result };
 }
 
 export async function createClientWorkspace(data: { name: string }) {
@@ -202,3 +207,124 @@ export async function createClientWorkspace(data: { name: string }) {
 
   return { success: true, org };
 }
+
+const CreateProductSchema = z.object({
+  name: z.string().min(1),
+  category: z.string().optional(),
+  unit: z.string().default('unité'),
+  purchase_price: z.number().nonnegative(),
+  sale_price: z.number().nonnegative(),
+  min_stock: z.number().nonnegative().default(0),
+  sku: z.string().optional(),
+  initial_quantity: z.number().nonnegative().default(0),
+  store_id: z.string().optional(),
+});
+
+export async function createProduct(data: {
+  name: string;
+  category?: string;
+  unit?: string;
+  purchase_price: number;
+  sale_price: number;
+  min_stock?: number;
+  sku?: string;
+  initial_quantity?: number;
+  store_id?: string;
+  organization_id: string;
+}) {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { error: "Non autorisé" };
+
+  const orgId = data.organization_id;
+  if (!orgId) return { error: "Organisation manquante" };
+
+  let parsedData;
+  try {
+    parsedData = CreateProductSchema.parse(data);
+  } catch (e: any) {
+    return { error: "Données invalides : " + e.message };
+  }
+
+  const sku = parsedData.sku || `PRD-${Date.now().toString().slice(-6)}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: product, error: prdErr } = await (supabase as any).from('products').insert({
+    organization_id: orgId,
+    name: parsedData.name,
+    category: parsedData.category || 'Général',
+    unit: parsedData.unit || 'unité',
+    purchase_price: parsedData.purchase_price,
+    sale_price: parsedData.sale_price,
+    min_stock: parsedData.min_stock || 0,
+    sku: sku,
+    active: true
+  }).select().single();
+
+  if (prdErr) return { error: prdErr.message };
+
+  // Si une quantité initiale est fournie et qu'un dépôt est sélectionné, créer le mouvement initial
+  if (parsedData.initial_quantity > 0 && parsedData.store_id) {
+    const idempotency = `init_prod_${product.id}_${Date.now()}`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('inventory_movements').insert({
+      organization_id: orgId,
+      store_id: parsedData.store_id,
+      product_id: product.id,
+      movement_type: 'purchase',
+      quantity: parsedData.initial_quantity,
+      reference_type: 'correction',
+      reference_id: product.id,
+      created_by: user.user.id,
+      idempotency_key: idempotency
+    });
+  }
+
+  return { data: product };
+}
+
+const AddStockMovementSchema = z.object({
+  store_id: z.string().uuid(),
+  product_id: z.string().uuid(),
+  quantity: z.number().positive(),
+  movement_type: z.enum(['purchase', 'adjustment', 'correction']),
+  organization_id: z.string().uuid(),
+});
+
+export async function addStockMovement(data: {
+  store_id: string;
+  product_id: string;
+  quantity: number;
+  movement_type: 'purchase' | 'adjustment' | 'correction';
+  organization_id: string;
+}) {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { error: "Non autorisé" };
+
+  let parsedData;
+  try {
+    parsedData = AddStockMovementSchema.parse(data);
+  } catch (e: any) {
+    return { error: "Données invalides : " + e.message };
+  }
+
+  const idempotency = `mvt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: mvt, error: mvtErr } = await (supabase as any).from('inventory_movements').insert({
+    organization_id: parsedData.organization_id,
+    store_id: parsedData.store_id,
+    product_id: parsedData.product_id,
+    movement_type: parsedData.movement_type,
+    quantity: parsedData.quantity,
+    reference_type: 'adjustment',
+    reference_id: parsedData.product_id,
+    created_by: user.user.id,
+    idempotency_key: idempotency
+  }).select().single();
+
+  if (mvtErr) return { error: mvtErr.message };
+  return { data: mvt };
+}
+
