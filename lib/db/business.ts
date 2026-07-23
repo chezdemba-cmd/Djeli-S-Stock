@@ -177,3 +177,23 @@ export async function createStore(data: {
   if (error) throw new Error(error.message);
   return result;
 }
+
+export async function createClientWorkspace(data: { name: string }) {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error("Non autorisé");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: org, error: orgErr } = await (supabase as any).from('organizations').insert({ name: data.name }).select().single();
+  if (orgErr) throw new Error(orgErr.message);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: storeErr } = await (supabase as any).from('stores').insert({ 
+    organization_id: org.id, 
+    name: 'Dépôt Principal',
+    active: true 
+  });
+  if (storeErr) throw new Error(storeErr.message);
+
+  return org;
+}

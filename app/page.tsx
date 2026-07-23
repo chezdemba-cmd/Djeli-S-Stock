@@ -6,7 +6,7 @@ import {
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
   WifiOff, Wifi, RefreshCw, Settings
 } from "lucide-react";
-import { processSale, SaleItemInput, createCustomer, createStore } from "../lib/db/business"; // Server Actions
+import { processSale, SaleItemInput, createCustomer, createStore, createClientWorkspace } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { createClient } from "../lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -61,7 +61,7 @@ export default function Home() {
   const [depots, setDepots] = useState<Depot[]>([]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Tableau de bord");
-  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | "receipt" | null>(null);
+  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | "receipt" | "new_client" | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [mobileNav, setMobileNav] = useState(false);
@@ -161,6 +161,9 @@ export default function Home() {
           const m = membership as { store_id: string };
           setStoreId(m.store_id);
           localStorage.setItem('djelis_store_id', m.store_id);
+        } else if (mappedStores.length > 0) {
+          setStoreId(mappedStores[0].id);
+          localStorage.setItem('djelis_store_id', mappedStores[0].id);
         }
       } else {
         setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
@@ -393,6 +396,27 @@ export default function Home() {
     }
   }
 
+  async function handleCreateClientWorkspaceForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isOnline) {
+      setErrorMsg("Requis : connexion internet.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const payload = { name: formData.get("name") as string };
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      await createClientWorkspace(payload);
+      setModal(null);
+      window.location.reload(); // Refresh to fetch new accessible orgs
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function queueOfflineAction(payload: any) {
     const action = { type: "SALE", payload, timestamp: Date.now() };
@@ -419,18 +443,45 @@ export default function Home() {
       <aside className="sidebar">
         <div className="brand"><div className="logo">D</div><div><h1>DJELI&apos;S</h1><p>STOCK</p></div></div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
-        <div className="depot" style={{ position: 'relative' }}>
+        {isSuperAdmin && (
+          <div className="depot" style={{ position: 'relative' }}>
+            <Warehouse size={18} />
+            <div style={{ flex: 1 }}>
+              <span>Espace Client (SaaS)</span>
+              {accessibleOrgs.length > 1 ? (
+                <select 
+                  value={activeOrgId || ''}
+                  onChange={(e) => {
+                    const newOrgId = e.target.value;
+                    setActiveOrgId(newOrgId);
+                    localStorage.setItem('djelis_active_org', newOrgId);
+                    window.location.reload();
+                  }}
+                  style={{ 
+                    background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
+                    width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
+                    fontSize: '0.9rem', fontFamily: 'inherit'
+                  }}
+                >
+                  {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
+                </select>
+              ) : (
+                <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || "Boutique principale"}</strong>
+              )}
+            </div>
+            {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
+          </div>
+        )}
+        <div className="depot" style={{ position: 'relative', marginTop: isSuperAdmin ? '0.5rem' : '0', background: isSuperAdmin ? 'rgba(0,0,0,0.2)' : undefined }}>
           <Store size={18} />
           <div style={{ flex: 1 }}>
-            <span>Espace Actif</span>
-            {accessibleOrgs.length > 1 ? (
+            <span>Dépôt Actif</span>
+            {depots.length > 1 ? (
               <select 
-                value={activeOrgId || ''}
+                value={storeId}
                 onChange={(e) => {
-                  const newOrgId = e.target.value;
-                  setActiveOrgId(newOrgId);
-                  localStorage.setItem('djelis_active_org', newOrgId);
-                  window.location.reload();
+                  setStoreId(e.target.value);
+                  localStorage.setItem('djelis_store_id', e.target.value);
                 }}
                 style={{ 
                   background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
@@ -438,13 +489,13 @@ export default function Home() {
                   fontSize: '0.9rem', fontFamily: 'inherit'
                 }}
               >
-                {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
+                {depots.map(d => <option key={d.id} value={d.id} style={{ color: '#333' }}>{d.name}</option>)}
               </select>
             ) : (
-              <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || "Boutique principale"}</strong>
+              <strong>{depots.length === 1 ? depots[0].name : "Aucun dépôt"}</strong>
             )}
           </div>
-          {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
+          {depots.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
         </div>
         <nav>{nav.map(({ label, icon: Icon }) => <button key={label} className={tab === label ? "active" : ""} onClick={() => { setTab(label); setMobileNav(false); }}><Icon size={19} />{label}</button>)}</nav>
       </aside>
@@ -543,7 +594,7 @@ export default function Home() {
               <h2 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>Administration Multi-Clients</h2>
               <p style={{ color: '#666', fontSize: '0.9rem' }}>Gérez les espaces de travail de vos clients.</p>
             </div>
-            <button className="primary" onClick={() => alert('Bientôt disponible : Création de compte client')}>+ Nouvel Espace Client</button>
+            <button className="primary" onClick={() => setModal('new_client')}>+ Nouvel Espace Client</button>
           </div>
           <div className="table-wrap">
             <table>
@@ -573,6 +624,7 @@ export default function Home() {
           {modal === "depot" && <DepotForm onClose={() => setModal(null)} onSubmit={handleCreateDepot} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "sale" && <SaleForm isOnline={isOnline} products={products} customers={customers} isSubmitting={isSubmitting} errorMsg={errorMsg} onSubmit={handleSale} />}
           {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} onClose={() => setModal(null)} money={money} />}
+          {modal === "new_client" && <ClientForm onClose={() => setModal(null)} onSubmit={handleCreateClientWorkspaceForm} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
         </div>
       </div>}
     </main>
@@ -683,18 +735,16 @@ function ReceiptModal({ receipt, onClose, money }: { receipt: any, onClose: () =
   const phoneParam = receipt.customerPhone ? receipt.customerPhone.replace(/[^0-9]/g, '') : '';
   const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(text)}`;
 
-  return <>
-    <div className="modal-heading"><div className="modal-symbol" style={{ background: '#e8f5e9', color: '#2e7d32' }}><ShoppingCart /></div><div><h2>Vente Confirmée !</h2><p>Souhaitez-vous envoyer le reçu ?</p></div></div>
-    <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', marginBottom: '1rem', fontSize: '0.9rem' }}>
-      {text}
-    </div>
-    <div className="form-actions wide">
-      <button type="button" onClick={onClose}>Fermer</button>
-      <a href={url} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#25D366', color: 'white', padding: '0 1rem', borderRadius: '8px', fontWeight: 'bold' }}>
-        Envoyer sur WhatsApp
-      </a>
-    </div>
-  </>;
+  return (
+    <>
+      <div className="modal-heading"><div className="modal-symbol"><ShoppingCart /></div><div><h2>Reçu</h2><p>Partager avec le client</p></div></div>
+      <pre style={{ background: '#f5f5f5', padding: '15px', borderRadius: '8px', fontSize: '13px', whiteSpace: 'pre-wrap', marginBottom: '1rem' }}>{text}</pre>
+      <div className="form-actions wide">
+        <button type="button" onClick={onClose}>Fermer</button>
+        <a href={url} target="_blank" rel="noreferrer" className="button primary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>Envoyer sur WhatsApp</a>
+      </div>
+    </>
+  );
 }
 
 function CustomerForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
@@ -731,4 +781,26 @@ function DepotForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () 
       </div>
     </form>
   </>;
+}
+
+export function ClientForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
+  return (
+    <>
+      <div className="modal-heading">
+        <div className="modal-symbol"><Warehouse /></div>
+        <div><h2>Nouvel Espace Client</h2><p>Créer une organisation et un dépôt par défaut.</p></div>
+      </div>
+      {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
+      <form onSubmit={onSubmit}>
+        <label className="wide">Nom de l&apos;entreprise cliente
+          <input name="name" required type="text" placeholder="Ex: Quincaillerie Beta" />
+        </label>
+        <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '-0.5rem', marginBottom: '1rem' }}>Cet espace sera immédiatement disponible dans votre sélecteur.</p>
+        <div className="form-actions wide">
+          <button type="button" onClick={onClose}>Annuler</button>
+          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Création..." : "Créer l'Espace"}</button>
+        </div>
+      </form>
+    </>
+  );
 }
