@@ -92,7 +92,8 @@ export default function Home() {
       if (online) {
         let currentActiveOrgId = localStorage.getItem('djelis_active_org');
         const { data: profile } = await supabase.from('profiles').select('is_super_admin').eq('id', session.user.id).single();
-        const superAdmin = profile?.is_super_admin || false;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const superAdmin = (profile as any)?.is_super_admin || false;
         setIsSuperAdmin(superAdmin);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
