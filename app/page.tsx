@@ -61,7 +61,8 @@ export default function Home() {
   const [depots, setDepots] = useState<Depot[]>([]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Tableau de bord");
-  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | null>(null);
+  const [modal, setModal] = useState<"product" | "movement" | "customer" | "depot" | "sale" | "receipt" | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -230,8 +231,19 @@ export default function Home() {
         setCustomers(current => current.map(c => c.id === customerId ? { ...c, balance: c.balance + (totalAmount - paidAmount) } : c));
       }
       
+      const receiptData = {
+        date: new Date().toLocaleDateString("fr-FR"),
+        productName: product.name,
+        quantity,
+        total: totalAmount,
+        paid: paidAmount,
+        due: totalAmount - paidAmount,
+        customerPhone: customerId ? customers.find(c => c.id === customerId)?.phone : null
+      };
+      setLastReceipt(receiptData);
+      
       speak(`Vente confirmée. Total : ${totalAmount} francs.`);
-      setModal(null);
+      setModal("receipt");
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -347,9 +359,10 @@ export default function Home() {
 
       {modal && <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
         <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-          <button className="modal-close" onClick={() => setModal(null)}><X /></button>
-          {modal === "sale" && <SaleForm products={products} customers={customers} onSubmit={handleSale} isSubmitting={isSubmitting} errorMsg={errorMsg} isOnline={isOnline} />}
+          <button className="modal-close" onClick={() => setModal(null)}><X size={20} /></button>
           {modal === "product" && <ProductForm onClose={() => setModal(null)} />}
+          {modal === "sale" && <SaleForm isOnline={isOnline} products={products} customers={customers} isSubmitting={isSubmitting} errorMsg={errorMsg} onSubmit={handleSale} />}
+          {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} onClose={() => setModal(null)} money={money} />}
         </div>
       </div>}
     </main>
@@ -452,4 +465,22 @@ function ProductForm({ onClose }: { onClose: () => void }) {
       </form>
     </>
   );
+}
+
+function ReceiptModal({ receipt, onClose, money }: { receipt: any, onClose: () => void, money: Intl.NumberFormat }) {
+  const text = `*DJELI'S STOCK - REÇU DE VENTE* 🧾\nDate : ${receipt.date}\n-------------------------\nProduit : ${receipt.quantity}x ${receipt.productName}\nTotal : ${money.format(receipt.total)}\nPayé : ${money.format(receipt.paid)}\nReste à Payer : ${money.format(receipt.due)}\n-------------------------\nMerci pour votre confiance !`;
+  const url = `whatsapp://send?text=${encodeURIComponent(text)}${receipt.customerPhone ? `&phone=${receipt.customerPhone.replace(/[^0-9]/g, '')}` : ''}`;
+
+  return <>
+    <div className="modal-heading"><div className="modal-symbol" style={{ background: '#e8f5e9', color: '#2e7d32' }}><ShoppingCart /></div><div><h2>Vente Confirmée !</h2><p>Souhaitez-vous envoyer le reçu ?</p></div></div>
+    <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', marginBottom: '1rem', fontSize: '0.9rem' }}>
+      {text}
+    </div>
+    <div className="form-actions wide">
+      <button type="button" onClick={onClose}>Fermer</button>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#25D366', color: 'white', padding: '0 1rem', borderRadius: '8px', fontWeight: 'bold' }}>
+        Envoyer sur WhatsApp
+      </a>
+    </div>
+  </>;
 }
