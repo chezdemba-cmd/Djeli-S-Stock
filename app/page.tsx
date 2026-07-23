@@ -243,6 +243,7 @@ export default function Home() {
       setLastReceipt(receiptData);
       
       speak(`Vente confirmée. Total : ${totalAmount} francs.`);
+      console.log("=== TRANSITION VERS LE RECU ===", receiptData);
       setModal("receipt");
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
@@ -276,7 +277,7 @@ export default function Home() {
       <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
         <div className="brand"><div className="brand-mark">D</div><div><strong>DJELI&apos;S</strong><span>STOCK</span></div></div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
-        <div className="depot"><Store size={18} /><div><span>Dépôt sélectionné</span><strong>Dépôt central Bamako</strong></div><ChevronRight size={16} /></div>
+        <div className="depot"><Store size={18} /><div><span>Dépôt sélectionné</span><strong>Dépôt central Bamako (V2)</strong></div><ChevronRight size={16} /></div>
         <nav>{nav.map(({ label, icon: Icon }) => <button key={label} className={tab === label ? "active" : ""} onClick={() => { setTab(label); setMobileNav(false); }}><Icon size={19} />{label}</button>)}</nav>
       </aside>
 
