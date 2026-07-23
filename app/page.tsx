@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { processSale, SaleItemInput } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import { createClient } from "../lib/supabase/client";
+import { useRouter } from "next/navigation";
+
 type Product = { id: string; name: string; sku: string; category: string; unit: string; quantity: number; minStock: number; purchasePrice: number; salePrice: number; };
 type Movement = { id: string; product: string; type: "Entrée" | "Sortie" | "Vente"; quantity: number; date: string; author: string; };
 type Customer = { id: string; name: string; phone: string; city: string; balance: number; dueDate: string; status: "À jour" | "À relancer" | "En retard"; };
@@ -50,9 +53,11 @@ const stockData = [
 ];
 
 export default function Home() {
-  const [products, setProducts] = useState(initialProducts);
+  const router = useRouter();
+  const supabase = createClient();
+  const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
-  const [customers, setCustomers] = useState(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Tableau de bord");
@@ -60,12 +65,51 @@ export default function Home() {
   const [mobileNav, setMobileNav] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [isOnline, setIsOnline] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
-  const [lastSync, setLastSync] = useState<string>("À l'instant");
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState("Jamais");
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [storeId, setStoreId] = useState<string>("mock-store-id");
+
+  useEffect(() => {
+    const checkAuthAndLoadData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      const online = navigator.onLine;
+      setIsOnline(online);
+
+      if (online) {
+        const { data: dbProducts } = await supabase.from('products').select('*');
+        if (dbProducts) {
+          const mapped = dbProducts.map((p: any) => ({
+            id: p.id, name: p.name, sku: p.sku, category: p.category, unit: p.unit, 
+            quantity: 100, 
+            minStock: p.min_stock, purchasePrice: p.purchase_price, salePrice: p.sale_price
+          }));
+          setProducts(mapped);
+          localStorage.setItem('djelis_products', JSON.stringify(mapped));
+        }
+
+        const { data: membership } = await supabase.from('memberships').select('store_id').eq('user_id', session.user.id).limit(1).single();
+        if (membership) {
+          const m = membership as { store_id: string };
+          setStoreId(m.store_id);
+          localStorage.setItem('djelis_store_id', m.store_id);
+        }
+      } else {
+        setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
+        setStoreId(localStorage.getItem('djelis_store_id') || "mock-store-id");
+      }
+      setSessionLoading(false);
+    };
+
+    checkAuthAndLoadData();
+  }, [supabase, router]);
 
   const syncOfflineQueue = useCallback(async () => {
     const queueString = localStorage.getItem("djelis_offline_queue") || "[]";
@@ -151,7 +195,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/purity
     const idempotency_key = `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const payload = {
-      store_id: "mock-store-id",
+      store_id: storeId,
       items: [{ product_id: productId, quantity, unit_price: product.salePrice }],
       total_amount: totalAmount,
       paid_amount: paidAmount,
@@ -198,9 +242,12 @@ export default function Home() {
     { label: "Tableau de bord", icon: BarChart3 },
     { label: "Produits", icon: Boxes },
     { label: "Mouvements", icon: ArrowDownLeft },
-    { label: "Dépôts", icon: Warehouse },
     { label: "Clients", icon: Users },
   ];
+
+  if (sessionLoading) {
+    return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}><RefreshCw className="spin" /></div>;
+  }
 
   return (
     <main className="app-shell">
