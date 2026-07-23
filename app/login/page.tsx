@@ -41,7 +41,7 @@ export default function LoginPage() {
         </div>
         
         <h1 style={{ fontFamily: "Georgia, serif", fontSize: "24px", textAlign: "center", margin: "0 0 10px 0", color: "#173f35" }}>Connexion</h1>
-        <p style={{ textAlign: "center", color: "#6c7773", fontSize: "14px", margin: "0 0 30px 0" }}>Accédez à votre espace DJELI'S Stock</p>
+        <p style={{ textAlign: "center", color: "#6c7773", fontSize: "14px", margin: "0 0 30px 0" }}>Accédez à votre espace DJELI&apos;S Stock</p>
 
         {error && (
           <div style={{ background: "#fae9e7", color: "#b8443a", padding: "12px", borderRadius: "8px", fontSize: "13px", marginBottom: "20px", textAlign: "center" }}>
