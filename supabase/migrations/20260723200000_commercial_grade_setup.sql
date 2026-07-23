@@ -126,7 +126,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.bootstrap_user_organization(text) TO authenticated, anon;
 
--- 4. Débloquer la création d'organisation pour les utilisateurs authentifiés
+-- 4. Débloquer la création d'organisation et de dépôts pour tout utilisateur authentifié
 DROP POLICY IF EXISTS "Super admin insert orgs" ON public.organizations;
 DROP POLICY IF EXISTS "Authenticated users insert orgs" ON public.organizations;
 CREATE POLICY "Authenticated users insert orgs" ON public.organizations FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
@@ -134,3 +134,7 @@ CREATE POLICY "Authenticated users insert orgs" ON public.organizations FOR INSE
 DROP POLICY IF EXISTS "Insert memberships" ON public.memberships;
 DROP POLICY IF EXISTS "Authenticated users insert memberships" ON public.memberships;
 CREATE POLICY "Authenticated users insert memberships" ON public.memberships FOR INSERT WITH CHECK (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_super_admin = true));
+
+DROP POLICY IF EXISTS "Org isolation insert stores" ON public.stores;
+DROP POLICY IF EXISTS "Authenticated users insert stores" ON public.stores;
+CREATE POLICY "Authenticated users insert stores" ON public.stores FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
