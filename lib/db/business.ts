@@ -134,36 +134,40 @@ export async function processSale(data: {
   idempotency_key: string;
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
-
-  let parsedData;
   try {
-    parsedData = ProcessSaleSchema.parse(data);
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = ProcessSaleSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+    const targetStoreId = parsedData.store_id || storeId;
+
+    const payload = {
+      ...parsedData,
+      store_id: targetStoreId,
+      organization_id: orgId,
+      user_id: user.user.id
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (admin.rpc as any)('create_sale', { payload });
+    if (error) {
+      if (error.message.includes('insuffisant')) return { error: "Stock insuffisant pour valider cette vente." };
+      if (error.message.includes('obligatoire pour une vente à crédit')) return { error: "Un client est obligatoire pour un crédit." };
+      return { error: error.message };
+    }
+    return { data: result };
   } catch (e: any) {
-    return { error: "Données invalides : " + e.message };
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
   }
-
-  const admin = getAdmin();
-  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
-  const targetStoreId = parsedData.store_id || storeId;
-
-  const payload = {
-    ...parsedData,
-    store_id: targetStoreId,
-    organization_id: orgId,
-    user_id: user.user.id
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (admin.rpc as any)('create_sale', { payload });
-  if (error) {
-    if (error.message.includes('insuffisant')) return { error: "Stock insuffisant pour valider cette vente." };
-    if (error.message.includes('obligatoire pour une vente à crédit')) return { error: "Un client est obligatoire pour un crédit." };
-    return { error: error.message };
-  }
-  return { data: result };
 }
 
 export async function payReceivable(data: {
@@ -173,23 +177,27 @@ export async function payReceivable(data: {
   idempotency_key: string;
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
 
-  const admin = getAdmin();
-  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
 
-  const payload = {
-    ...data,
-    organization_id: orgId,
-    user_id: user.user.id
-  };
+    const payload = {
+      ...data,
+      organization_id: orgId,
+      user_id: user.user.id
+    };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (admin.rpc as any)('pay_receivable', { payload });
-  if (error) return { error: error.message };
-  return { data: result };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (admin.rpc as any)('pay_receivable', { payload });
+    if (error) return { error: error.message };
+    return { data: result };
+  } catch (e: any) {
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
 }
 
 const CreateCustomerSchema = z.object({
@@ -204,31 +212,35 @@ export async function createCustomer(data: {
   city?: string;
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
-
-  let parsedData;
   try {
-    parsedData = CreateCustomerSchema.parse(data);
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = CreateCustomerSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (admin as any).from('customers').insert({
+      organization_id: orgId,
+      name: parsedData.name,
+      phone: parsedData.phone || '',
+      city: parsedData.city || '',
+      active: true
+    }).select().single();
+
+    if (error || !result) return { error: "Erreur création client : " + (error?.message || "Erreur Supabase") };
+    return { data: result };
   } catch (e: any) {
-    return { error: "Données invalides : " + e.message };
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
   }
-
-  const admin = getAdmin();
-  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (admin as any).from('customers').insert({
-    organization_id: orgId,
-    name: parsedData.name,
-    phone: parsedData.phone || '',
-    city: parsedData.city || '',
-    active: true
-  }).select().single();
-
-  if (error) return { error: "Erreur création client : " + error.message };
-  return { data: result };
 }
 
 const CreateStoreSchema = z.object({
@@ -243,64 +255,75 @@ export async function createStore(data: {
   allow_negative_stock?: boolean;
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
-
-  let parsedData;
   try {
-    parsedData = CreateStoreSchema.parse(data);
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = CreateStoreSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (admin as any).from('stores').insert({
+      organization_id: orgId,
+      name: parsedData.name,
+      city: parsedData.city || '',
+      allow_negative_stock: parsedData.allow_negative_stock || false,
+      active: true
+    }).select().single();
+
+    if (error || !result) return { error: "Erreur création dépôt : " + (error?.message || "Impossible d'enregistrer le dépôt") };
+
+    if (result && result.id) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (admin as any).from('memberships').update({ store_id: result.id }).eq('user_id', user.user.id).eq('organization_id', orgId);
+      } catch {}
+    }
+
+    return { data: result };
   } catch (e: any) {
-    return { error: "Données invalides : " + e.message };
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
   }
-
-  const admin = getAdmin();
-  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (admin as any).from('stores').insert({
-    organization_id: orgId,
-    name: parsedData.name,
-    city: parsedData.city || '',
-    allow_negative_stock: parsedData.allow_negative_stock || false,
-    active: true
-  }).select().single();
-
-  if (error) return { error: "Erreur création dépôt : " + error.message };
-
-  // Mettre à jour le dépôt actif dans memberships
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (admin as any).from('memberships').update({ store_id: result.id }).eq('user_id', user.user.id).eq('organization_id', orgId);
-
-  return { data: result };
 }
 
 export async function createClientWorkspace(data: { name: string }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { success: false, error: "Non autorisé (session expirée)" };
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { success: false, error: "Non autorisé (session expirée)" };
 
-  const admin = getAdmin();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: org, error: orgErr } = await (admin as any).from('organizations').insert({ name: data.name }).select().single();
-  if (orgErr || !org) return { success: false, error: "Erreur création entreprise : " + (orgErr?.message || "Erreur Supabase") };
+    const admin = getAdmin();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: org, error: orgErr } = await (admin as any).from('organizations').insert({ name: data.name }).select().single();
+    if (orgErr || !org) return { success: false, error: "Erreur création entreprise : " + (orgErr?.message || "Erreur Supabase") };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: store } = await (admin as any).from('stores').insert({
-    organization_id: org.id,
-    name: 'Dépôt Principal',
-    active: true
-  }).select().single();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: store } = await (admin as any).from('stores').insert({
+      organization_id: org.id,
+      name: 'Dépôt Principal',
+      active: true
+    }).select().single();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (admin as any).from('memberships').insert({
-    user_id: user.user.id,
-    organization_id: org.id,
-    store_id: store ? store.id : null,
-    role: 'owner'
-  });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('memberships').insert({
+      user_id: user.user.id,
+      organization_id: org.id,
+      store_id: store ? store.id : null,
+      role: 'owner'
+    });
 
-  return { success: true, org };
+    return { success: true, org };
+  } catch (e: any) {
+    return { success: false, error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
 }
 
 const CreateProductSchema = z.object({
@@ -327,55 +350,59 @@ export async function createProduct(data: {
   store_id?: string;
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
-
-  let parsedData;
   try {
-    parsedData = CreateProductSchema.parse(data);
-  } catch (e: any) {
-    return { error: "Données invalides : " + e.message };
-  }
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
 
-  const admin = getAdmin();
-  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
-  const targetStoreId = parsedData.store_id || storeId;
+    let parsedData;
+    try {
+      parsedData = CreateProductSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
 
-  const sku = parsedData.sku || `PRD-${Date.now().toString().slice(-6)}`;
+    const admin = getAdmin();
+    const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+    const targetStoreId = parsedData.store_id || storeId;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: product, error: prdErr } = await (admin as any).from('products').insert({
-    organization_id: orgId,
-    name: parsedData.name,
-    category: parsedData.category || 'Général',
-    unit: parsedData.unit || 'unité',
-    purchase_price: parsedData.purchase_price,
-    sale_price: parsedData.sale_price,
-    min_stock: parsedData.min_stock || 0,
-    sku: sku,
-    active: true
-  }).select().single();
+    const sku = parsedData.sku || `PRD-${Date.now().toString().slice(-6)}`;
 
-  if (prdErr) return { error: "Erreur création produit : " + prdErr.message };
-
-  if (parsedData.initial_quantity > 0 && targetStoreId) {
-    const idempotency = `init_prod_${product.id}_${Date.now()}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any).from('inventory_movements').insert({
+    const { data: product, error: prdErr } = await (admin as any).from('products').insert({
       organization_id: orgId,
-      store_id: targetStoreId,
-      product_id: product.id,
-      movement_type: 'purchase',
-      quantity: parsedData.initial_quantity,
-      reference_type: 'correction',
-      reference_id: product.id,
-      created_by: user.user.id,
-      idempotency_key: idempotency
-    });
-  }
+      name: parsedData.name,
+      category: parsedData.category || 'Général',
+      unit: parsedData.unit || 'unité',
+      purchase_price: parsedData.purchase_price,
+      sale_price: parsedData.sale_price,
+      min_stock: parsedData.min_stock || 0,
+      sku: sku,
+      active: true
+    }).select().single();
 
-  return { data: product };
+    if (prdErr || !product) return { error: "Erreur création produit : " + (prdErr?.message || "Erreur Supabase") };
+
+    if (parsedData.initial_quantity > 0 && targetStoreId) {
+      const idempotency = `init_prod_${product.id}_${Date.now()}`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from('inventory_movements').insert({
+        organization_id: orgId,
+        store_id: targetStoreId,
+        product_id: product.id,
+        movement_type: 'purchase',
+        quantity: parsedData.initial_quantity,
+        reference_type: 'correction',
+        reference_id: product.id,
+        created_by: user.user.id,
+        idempotency_key: idempotency
+      });
+    }
+
+    return { data: product };
+  } catch (e: any) {
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
 }
 
 const AddStockMovementSchema = z.object({
@@ -392,36 +419,40 @@ export async function addStockMovement(data: {
   movement_type: 'purchase' | 'adjustment' | 'correction';
   organization_id?: string;
 }) {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée)" };
-
-  let parsedData;
   try {
-    parsedData = AddStockMovementSchema.parse(data);
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = AddStockMovementSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+    const targetStoreId = parsedData.store_id || storeId;
+
+    const idempotency = `mvt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mvt, error: mvtErr } = await (admin as any).from('inventory_movements').insert({
+      organization_id: orgId,
+      store_id: targetStoreId,
+      product_id: parsedData.product_id,
+      movement_type: parsedData.movement_type,
+      quantity: parsedData.quantity,
+      reference_type: 'adjustment',
+      reference_id: parsedData.product_id,
+      created_by: user.user.id,
+      idempotency_key: idempotency
+    }).select().single();
+
+    if (mvtErr || !mvt) return { error: "Erreur mouvement stock : " + (mvtErr?.message || "Erreur Supabase") };
+    return { data: mvt };
   } catch (e: any) {
-    return { error: "Données invalides : " + e.message };
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
   }
-
-  const admin = getAdmin();
-  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
-  const targetStoreId = parsedData.store_id || storeId;
-
-  const idempotency = `mvt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: mvt, error: mvtErr } = await (admin as any).from('inventory_movements').insert({
-    organization_id: orgId,
-    store_id: targetStoreId,
-    product_id: parsedData.product_id,
-    movement_type: parsedData.movement_type,
-    quantity: parsedData.quantity,
-    reference_type: 'adjustment',
-    reference_id: parsedData.product_id,
-    created_by: user.user.id,
-    idempotency_key: idempotency
-  }).select().single();
-
-  if (mvtErr) return { error: "Erreur mouvement stock : " + mvtErr.message };
-  return { data: mvt };
 }
