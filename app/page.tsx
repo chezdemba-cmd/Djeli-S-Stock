@@ -146,14 +146,15 @@ export default function Home() {
           localStorage.setItem('djelis_customers', JSON.stringify(mappedCustomers));
         }
 
+        let finalStores: Depot[] = [];
         const { data: storesData } = await storesQuery;
         if (storesData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const mappedStores: Depot[] = storesData.map((s: any) => ({
+          finalStores = storesData.map((s: any) => ({
             id: s.id, name: s.name, city: s.city || '', manager: 'Gérant', references: 0, stockValue: 0
           }));
-          setDepots(mappedStores);
-          localStorage.setItem('djelis_stores', JSON.stringify(mappedStores));
+          setDepots(finalStores);
+          localStorage.setItem('djelis_stores', JSON.stringify(finalStores));
         }
 
         const { data: membership } = await supabase.from('memberships').select('store_id').eq('user_id', session.user.id).limit(1).single();
@@ -161,9 +162,9 @@ export default function Home() {
           const m = membership as { store_id: string };
           setStoreId(m.store_id);
           localStorage.setItem('djelis_store_id', m.store_id);
-        } else if (mappedStores.length > 0) {
-          setStoreId(mappedStores[0].id);
-          localStorage.setItem('djelis_store_id', mappedStores[0].id);
+        } else if (finalStores.length > 0) {
+          setStoreId(finalStores[0].id);
+          localStorage.setItem('djelis_store_id', finalStores[0].id);
         }
       } else {
         setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
