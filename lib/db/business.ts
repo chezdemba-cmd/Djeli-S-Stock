@@ -181,11 +181,11 @@ export async function createStore(data: {
 export async function createClientWorkspace(data: { name: string }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Non autorisé");
+  if (!user.user) return { success: false, error: "Non autorisé" };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: org, error: orgErr } = await (supabase as any).from('organizations').insert({ name: data.name }).select().single();
-  if (orgErr) throw new Error(orgErr.message);
+  if (orgErr) return { success: false, error: "Erreur Supabase (organizations): " + orgErr.message };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: storeErr } = await (supabase as any).from('stores').insert({ 
@@ -193,7 +193,7 @@ export async function createClientWorkspace(data: { name: string }) {
     name: 'Dépôt Principal',
     active: true 
   });
-  if (storeErr) throw new Error(storeErr.message);
+  if (storeErr) return { success: false, error: "Erreur Supabase (stores): " + storeErr.message };
 
-  return org;
+  return { success: true, org };
 }

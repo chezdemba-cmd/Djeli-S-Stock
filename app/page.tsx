@@ -408,9 +408,13 @@ export default function Home() {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await createClientWorkspace(payload);
-      setModal(null);
-      window.location.reload(); // Refresh to fetch new accessible orgs
+      const result = await createClientWorkspace(payload);
+      if (result && !result.success) {
+        setErrorMsg(result.error || "Erreur inconnue");
+      } else {
+        setModal(null);
+        window.location.reload(); // Refresh to fetch new accessible orgs
+      }
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
     } finally {
