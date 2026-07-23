@@ -107,7 +107,27 @@ export default function Home() {
         } else {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data: orgs } = await (supabase.rpc as any)('current_orgs');
-          currentActiveOrgId = orgs && orgs.length > 0 ? orgs[0] : null;
+          if (orgs && orgs.length > 0) {
+            currentActiveOrgId = orgs[0];
+          }
+        }
+
+        // Fallback 1: Requête directe sur la table organizations
+        if (!currentActiveOrgId) {
+          const { data: directOrgs } = await supabase.from('organizations').select('id, name').limit(10);
+          if (directOrgs && directOrgs.length > 0) {
+            currentActiveOrgId = directOrgs[0].id;
+            setAccessibleOrgs(directOrgs);
+          }
+        }
+
+        // Fallback 2: Auto-création de l'Espace Principal si absolument aucune organisation n'existe
+        if (!currentActiveOrgId) {
+          const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
+          if (autoWs && autoWs.org) {
+            currentActiveOrgId = autoWs.org.id;
+            setAccessibleOrgs([{ id: autoWs.org.id, name: autoWs.org.name }]);
+          }
         }
 
         if (currentActiveOrgId) {
@@ -329,7 +349,7 @@ export default function Home() {
       payment_method: method,
       customer_id: customerId || undefined,
       idempotency_key,
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
 
     try {
@@ -380,7 +400,7 @@ export default function Home() {
       name: formData.get("name") as string,
       phone: formData.get("phone") as string,
       city: formData.get("city") as string,
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
     
     setIsSubmitting(true);
@@ -423,7 +443,7 @@ export default function Home() {
       name: formData.get("name") as string,
       city: formData.get("city") as string,
       allow_negative_stock: formData.get("allow_negative_stock") === "on",
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
     
     setIsSubmitting(true);
@@ -466,7 +486,7 @@ export default function Home() {
       min_stock: Number(formData.get("min_stock") || 0),
       initial_quantity: Number(formData.get("initial_quantity") || 0),
       store_id: storeId,
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
 
     setIsSubmitting(true);
@@ -515,7 +535,7 @@ export default function Home() {
       product_id: productId,
       quantity: quantity,
       movement_type: 'purchase' as const,
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
 
     setIsSubmitting(true);
@@ -562,7 +582,7 @@ export default function Home() {
       amount: amount,
       payment_method: method,
       idempotency_key: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      organization_id: activeOrgId!
+      organization_id: activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || ''
     };
 
     setIsSubmitting(true);
