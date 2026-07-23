@@ -940,7 +940,7 @@ function ProductForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: (
           <label>Prix d&apos;Achat (FCFA) <input required type="number" min="0" name="purchase_price" defaultValue="15000" /></label>
           <label>Prix de Vente (FCFA) <input required type="number" min="0" name="sale_price" defaultValue="18000" /></label>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="wide" style={{ marginTop: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }} className="wide">
           <label>Stock Initial <input type="number" min="0" name="initial_quantity" defaultValue="0" /></label>
           <label>Alerte Stock Min. <input type="number" min="0" name="min_stock" defaultValue="5" /></label>
         </div>
