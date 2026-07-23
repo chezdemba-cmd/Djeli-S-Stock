@@ -419,7 +419,33 @@ export default function Home() {
       <aside className="sidebar">
         <div className="brand"><div className="logo">D</div><div><h1>DJELI&apos;S</h1><p>STOCK</p></div></div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
-        <div className="depot"><Store size={18} /><div><span>Dépôt sélectionné</span><strong>Dépôt central Bamako (V2)</strong></div><ChevronRight size={16} /></div>
+        <div className="depot" style={{ position: 'relative' }}>
+          <Store size={18} />
+          <div style={{ flex: 1 }}>
+            <span>Espace Actif</span>
+            {accessibleOrgs.length > 1 ? (
+              <select 
+                value={activeOrgId || ''}
+                onChange={(e) => {
+                  const newOrgId = e.target.value;
+                  setActiveOrgId(newOrgId);
+                  localStorage.setItem('djelis_active_org', newOrgId);
+                  window.location.reload();
+                }}
+                style={{ 
+                  background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
+                  width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.9rem', fontFamily: 'inherit'
+                }}
+              >
+                {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
+              </select>
+            ) : (
+              <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || "Boutique principale"}</strong>
+            )}
+          </div>
+          {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
+        </div>
         <nav>{nav.map(({ label, icon: Icon }) => <button key={label} className={tab === label ? "active" : ""} onClick={() => { setTab(label); setMobileNav(false); }}><Icon size={19} />{label}</button>)}</nav>
       </aside>
 
@@ -435,25 +461,7 @@ export default function Home() {
               <small>{offlineQueue.length > 0 ? `${offlineQueue.length} action(s) en attente` : `Sync: ${lastSync}`}</small>
             </div>
           </div>
-          
-          {accessibleOrgs.length > 1 && (
-            <div className="org-switcher" style={{ marginRight: '1rem' }}>
-              <select 
-                value={activeOrgId || ''} 
-                onChange={(e) => {
-                  const newOrgId = e.target.value;
-                  setActiveOrgId(newOrgId);
-                  localStorage.setItem('djelis_active_org', newOrgId);
-                  window.location.reload();
-                }}
-                style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', fontSize: '0.9rem', outline: 'none' }}
-              >
-                {accessibleOrgs.map(org => (
-                  <option key={org.id} value={org.id}>{org.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
+
 
           <div className="header-actions">
             <button className="primary" onClick={() => setModal("sale")}><ShoppingCart size={18} />Vendre</button>
