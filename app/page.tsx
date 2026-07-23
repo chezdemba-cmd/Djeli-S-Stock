@@ -783,7 +783,7 @@ function DepotForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () 
   </>;
 }
 
-export function ClientForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
+function ClientForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: () => void, onSubmit: (e: FormEvent<HTMLFormElement>) => void, isSubmitting: boolean, errorMsg: string | null }) {
   return (
     <>
       <div className="modal-heading">
