@@ -130,8 +130,15 @@ export default function Home() {
         remainingQueue = remainingQueue.filter(item => item.payload.idempotency_key !== action.payload.idempotency_key);
         localStorage.setItem("djelis_offline_queue", JSON.stringify(remainingQueue));
         setOfflineQueue(remainingQueue);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Échec de synchronisation", e);
+        // Si c'est une erreur de validation (stock, etc) ou un mock_id obsolète, on jette l'action pour ne pas bloquer la file
+        if (e.message && (e.message.includes('mock-store-id') || e.message.includes('Stock insuffisant') || e.message.includes('obligatoire'))) {
+           remainingQueue = remainingQueue.filter(item => item.payload.idempotency_key !== action.payload.idempotency_key);
+           localStorage.setItem("djelis_offline_queue", JSON.stringify(remainingQueue));
+           setOfflineQueue(remainingQueue);
+           continue;
+        }
         break; 
       }
     }
@@ -140,11 +147,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsOnline(navigator.onLine);
+    const online = navigator.onLine;
+    setIsOnline(online);
     const queue = JSON.parse(localStorage.getItem("djelis_offline_queue") || "[]");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOfflineQueue(queue);
+
+    if (online && queue.length > 0) {
+      syncOfflineQueue();
+    }
 
     const handleOnline = () => { setIsOnline(true); syncOfflineQueue(); };
     const handleOffline = () => setIsOnline(false);
