@@ -1,5 +1,6 @@
 "use server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "../../types/database.types";
 import { z } from "zod";
@@ -41,39 +42,83 @@ export async function createClient() {
   );
 }
 
+function getAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createSupabaseClient<Database>(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Promise<string | null> {
+async function getOrCreateUserOrg(userId: string, email?: string, passedOrgId?: string): Promise<{ orgId: string; storeId: string }> {
+  const admin = getAdmin();
+
+  // 1. Si un passedOrgId valide existe dans la table organizations, l'utiliser
   if (passedOrgId && passedOrgId.trim() !== '' && passedOrgId !== 'mock-org-id' && passedOrgId !== 'null') {
-    try {
-      const { data: checkOrg } = await supabase.from('organizations').select('id').eq('id', passedOrgId).maybeSingle();
-      if (checkOrg && checkOrg.id) return checkOrg.id;
-    } catch {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: checkOrg } = await (admin as any).from('organizations').select('id').eq('id', passedOrgId).maybeSingle();
+    if (checkOrg && checkOrg.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: store } = await (admin as any).from('stores').select('id').eq('organization_id', checkOrg.id).limit(1).maybeSingle();
+      return { orgId: checkOrg.id, storeId: store?.id || '' };
+    }
   }
 
-  try {
-    const { data: orgs } = await supabase.rpc('current_orgs');
-    if (orgs && orgs.length > 0) return orgs[0];
-  } catch {}
-
-  try {
-    const { data: mem } = await supabase.from('memberships').select('organization_id').eq('user_id', user.id).limit(1).single();
-    if (mem && mem.organization_id) return mem.organization_id;
-  } catch {}
-
-  // Auto-création via la fonction RPC sécurisée (bootstrap)
-  try {
-    const { data: rpcRes } = await supabase.rpc('bootstrap_user_organization', { p_name: "Ma Boutique Principale" });
-    if (rpcRes && rpcRes.success && rpcRes.org_id) {
-      return rpcRes.org_id;
+  // 2. Vérifier les memberships
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: mem } = await (admin as any).from('memberships').select('organization_id, store_id').eq('user_id', userId).limit(1).maybeSingle();
+  if (mem && mem.organization_id) {
+    let storeId = mem.store_id;
+    if (!storeId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: store } = await (admin as any).from('stores').select('id').eq('organization_id', mem.organization_id).limit(1).maybeSingle();
+      storeId = store?.id || '';
     }
-  } catch {}
+    return { orgId: mem.organization_id, storeId: storeId || '' };
+  }
 
-  try {
-    const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
-    if (firstOrg && firstOrg.id) return firstOrg.id;
-  } catch {}
+  // 3. Vérifier n'importe quelle organisation existante
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: firstOrg } = await (admin as any).from('organizations').select('id').limit(1).maybeSingle();
+  if (firstOrg && firstOrg.id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: store } = await (admin as any).from('stores').select('id').eq('organization_id', firstOrg.id).limit(1).maybeSingle();
+    const storeId = store?.id || '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('memberships').upsert({
+      user_id: userId,
+      organization_id: firstOrg.id,
+      store_id: storeId || null,
+      role: 'owner'
+    }, { onConflict: 'user_id,organization_id' });
+    return { orgId: firstOrg.id, storeId };
+  }
 
-  return null;
+  // 4. Auto-création complète (Organisation + Dépôt Principal + Membership owner)
+  const name = email ? `${email.split('@')[0]} Boutique` : "Ma Boutique Principale";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newOrg, error: orgErr } = await (admin as any).from('organizations').insert({ name }).select().single();
+  if (orgErr || !newOrg) {
+    throw new Error("Impossible de créer l'entreprise : " + (orgErr?.message || "Erreur Supabase"));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newStore } = await (admin as any).from('stores').insert({
+    organization_id: newOrg.id,
+    name: 'Dépôt Principal',
+    active: true
+  }).select().single();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (admin as any).from('memberships').upsert({
+    user_id: userId,
+    organization_id: newOrg.id,
+    store_id: newStore?.id || null,
+    role: 'owner'
+  }, { onConflict: 'user_id,organization_id' });
+
+  return { orgId: newOrg.id, storeId: newStore?.id || '' };
 }
 
 export type SaleItemInput = { product_id: string; quantity: number; unit_price: number; };
@@ -87,11 +132,11 @@ export async function processSale(data: {
   customer_id?: string;
   due_date?: string;
   idempotency_key: string;
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé" };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
   let parsedData;
   try {
@@ -100,17 +145,19 @@ export async function processSale(data: {
     return { error: "Données invalides : " + e.message };
   }
 
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  const admin = getAdmin();
+  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+  const targetStoreId = parsedData.store_id || storeId;
 
   const payload = {
     ...parsedData,
+    store_id: targetStoreId,
     organization_id: orgId,
     user_id: user.user.id
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (supabase.rpc as any)('create_sale', { payload });
+  const { data: result, error } = await (admin.rpc as any)('create_sale', { payload });
   if (error) {
     if (error.message.includes('insuffisant')) return { error: "Stock insuffisant pour valider cette vente." };
     if (error.message.includes('obligatoire pour une vente à crédit')) return { error: "Un client est obligatoire pour un crédit." };
@@ -124,14 +171,14 @@ export async function payReceivable(data: {
   amount: number;
   payment_method: string;
   idempotency_key: string;
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé" };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  const admin = getAdmin();
+  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
 
   const payload = {
     ...data,
@@ -140,7 +187,7 @@ export async function payReceivable(data: {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (supabase.rpc as any)('pay_receivable', { payload });
+  const { data: result, error } = await (admin.rpc as any)('pay_receivable', { payload });
   if (error) return { error: error.message };
   return { data: result };
 }
@@ -155,14 +202,11 @@ export async function createCustomer(data: {
   name: string;
   phone?: string;
   city?: string;
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé (session expirée ou absente)" };
-
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
   let parsedData;
   try {
@@ -171,16 +215,19 @@ export async function createCustomer(data: {
     return { error: "Données invalides : " + e.message };
   }
 
+  const admin = getAdmin();
+  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (supabase as any).from('customers').insert({
+  const { data: result, error } = await (admin as any).from('customers').insert({
     organization_id: orgId,
     name: parsedData.name,
-    phone: parsedData.phone,
-    city: parsedData.city,
+    phone: parsedData.phone || '',
+    city: parsedData.city || '',
     active: true
   }).select().single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: "Erreur création client : " + error.message };
   return { data: result };
 }
 
@@ -194,14 +241,11 @@ export async function createStore(data: {
   name: string;
   city?: string;
   allow_negative_stock?: boolean;
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé" };
-
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
   let parsedData;
   try {
@@ -210,49 +254,46 @@ export async function createStore(data: {
     return { error: "Données invalides : " + e.message };
   }
 
+  const admin = getAdmin();
+  const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: result, error } = await (supabase as any).from('stores').insert({
+  const { data: result, error } = await (admin as any).from('stores').insert({
     organization_id: orgId,
     name: parsedData.name,
-    city: parsedData.city,
-    allow_negative_stock: parsedData.allow_negative_stock,
+    city: parsedData.city || '',
+    allow_negative_stock: parsedData.allow_negative_stock || false,
     active: true
   }).select().single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: "Erreur création dépôt : " + error.message };
+
+  // Mettre à jour le dépôt actif dans memberships
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (admin as any).from('memberships').update({ store_id: result.id }).eq('user_id', user.user.id).eq('organization_id', orgId);
+
   return { data: result };
 }
 
 export async function createClientWorkspace(data: { name: string }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { success: false, error: "Non autorisé" };
+  if (!user.user) return { success: false, error: "Non autorisé (session expirée)" };
 
-  // Essai 1: RPC bootstrap sécurisé
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: rpcRes, error: rpcErr } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: data.name });
-    if (!rpcErr && rpcRes && rpcRes.success) {
-      return { success: true, org: { id: rpcRes.org_id, name: data.name } };
-    }
-  } catch {}
-
-  // Essai 2: Insertion directe
+  const admin = getAdmin();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: org, error: orgErr } = await (supabase as any).from('organizations').insert({ name: data.name }).select().single();
-  if (orgErr) return { success: false, error: "Erreur Supabase (organizations): " + orgErr.message };
+  const { data: org, error: orgErr } = await (admin as any).from('organizations').insert({ name: data.name }).select().single();
+  if (orgErr || !org) return { success: false, error: "Erreur création entreprise : " + (orgErr?.message || "Erreur Supabase") };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: store, error: storeErr } = await (supabase as any).from('stores').insert({ 
-    organization_id: org.id, 
+  const { data: store } = await (admin as any).from('stores').insert({
+    organization_id: org.id,
     name: 'Dépôt Principal',
-    active: true 
+    active: true
   }).select().single();
-  if (storeErr) return { success: false, error: "Erreur Supabase (stores): " + storeErr.message };
 
-  // Attribuer la propriété (membership) à l'utilisateur créateur
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('memberships').insert({
+  await (admin as any).from('memberships').insert({
     user_id: user.user.id,
     organization_id: org.id,
     store_id: store ? store.id : null,
@@ -284,14 +325,11 @@ export async function createProduct(data: {
   sku?: string;
   initial_quantity?: number;
   store_id?: string;
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé" };
-
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
   let parsedData;
   try {
@@ -300,10 +338,14 @@ export async function createProduct(data: {
     return { error: "Données invalides : " + e.message };
   }
 
+  const admin = getAdmin();
+  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+  const targetStoreId = parsedData.store_id || storeId;
+
   const sku = parsedData.sku || `PRD-${Date.now().toString().slice(-6)}`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: product, error: prdErr } = await (supabase as any).from('products').insert({
+  const { data: product, error: prdErr } = await (admin as any).from('products').insert({
     organization_id: orgId,
     name: parsedData.name,
     category: parsedData.category || 'Général',
@@ -315,15 +357,14 @@ export async function createProduct(data: {
     active: true
   }).select().single();
 
-  if (prdErr) return { error: prdErr.message };
+  if (prdErr) return { error: "Erreur création produit : " + prdErr.message };
 
-  // Si une quantité initiale est fournie et qu'un dépôt est sélectionné, créer le mouvement initial
-  if (parsedData.initial_quantity > 0 && parsedData.store_id) {
+  if (parsedData.initial_quantity > 0 && targetStoreId) {
     const idempotency = `init_prod_${product.id}_${Date.now()}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('inventory_movements').insert({
+    await (admin as any).from('inventory_movements').insert({
       organization_id: orgId,
-      store_id: parsedData.store_id,
+      store_id: targetStoreId,
       product_id: product.id,
       movement_type: 'purchase',
       quantity: parsedData.initial_quantity,
@@ -338,40 +379,40 @@ export async function createProduct(data: {
 }
 
 const AddStockMovementSchema = z.object({
-  store_id: z.string().uuid(),
+  store_id: z.string().optional(),
   product_id: z.string().uuid(),
   quantity: z.number().positive(),
   movement_type: z.enum(['purchase', 'adjustment', 'correction']),
-  organization_id: z.string().uuid(),
 });
 
 export async function addStockMovement(data: {
-  store_id: string;
+  store_id?: string;
   product_id: string;
   quantity: number;
   movement_type: 'purchase' | 'adjustment' | 'correction';
-  organization_id: string;
+  organization_id?: string;
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { error: "Non autorisé" };
-
-  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
-  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+  if (!user.user) return { error: "Non autorisé (session expirée)" };
 
   let parsedData;
   try {
-    parsedData = AddStockMovementSchema.parse({ ...data, organization_id: orgId });
+    parsedData = AddStockMovementSchema.parse(data);
   } catch (e: any) {
     return { error: "Données invalides : " + e.message };
   }
 
+  const admin = getAdmin();
+  const { orgId, storeId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+  const targetStoreId = parsedData.store_id || storeId;
+
   const idempotency = `mvt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: mvt, error: mvtErr } = await (supabase as any).from('inventory_movements').insert({
+  const { data: mvt, error: mvtErr } = await (admin as any).from('inventory_movements').insert({
     organization_id: orgId,
-    store_id: parsedData.store_id,
+    store_id: targetStoreId,
     product_id: parsedData.product_id,
     movement_type: parsedData.movement_type,
     quantity: parsedData.quantity,
@@ -381,7 +422,6 @@ export async function addStockMovement(data: {
     idempotency_key: idempotency
   }).select().single();
 
-  if (mvtErr) return { error: mvtErr.message };
+  if (mvtErr) return { error: "Erreur mouvement stock : " + mvtErr.message };
   return { data: mvt };
 }
-
