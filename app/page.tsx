@@ -469,7 +469,8 @@ function ProductForm({ onClose }: { onClose: () => void }) {
 
 function ReceiptModal({ receipt, onClose, money }: { receipt: any, onClose: () => void, money: Intl.NumberFormat }) {
   const text = `*DJELI'S STOCK - REÇU DE VENTE* 🧾\nDate : ${receipt.date}\n-------------------------\nProduit : ${receipt.quantity}x ${receipt.productName}\nTotal : ${money.format(receipt.total)}\nPayé : ${money.format(receipt.paid)}\nReste à Payer : ${money.format(receipt.due)}\n-------------------------\nMerci pour votre confiance !`;
-  const url = `whatsapp://send?text=${encodeURIComponent(text)}${receipt.customerPhone ? `&phone=${receipt.customerPhone.replace(/[^0-9]/g, '')}` : ''}`;
+  const phoneParam = receipt.customerPhone ? receipt.customerPhone.replace(/[^0-9]/g, '') : '';
+  const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(text)}`;
 
   return <>
     <div className="modal-heading"><div className="modal-symbol" style={{ background: '#e8f5e9', color: '#2e7d32' }}><ShoppingCart /></div><div><h2>Vente Confirmée !</h2><p>Souhaitez-vous envoyer le reçu ?</p></div></div>
