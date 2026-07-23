@@ -127,12 +127,19 @@ export default function Home() {
           }
         }
 
-        // Fallback 2: Auto-création de l'Espace Principal si absolument aucune organisation n'existe
+        // Fallback 2: Auto-création via RPC bootstrap
         if (!currentActiveOrgId) {
-          const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
-          if (autoWs && autoWs.org) {
-            currentActiveOrgId = autoWs.org.id;
-            setAccessibleOrgs([{ id: autoWs.org.id, name: autoWs.org.name }]);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: rpcRes } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: "Ma Boutique Principale" });
+          if (rpcRes && rpcRes.success && rpcRes.org_id) {
+            currentActiveOrgId = rpcRes.org_id;
+            setAccessibleOrgs([{ id: rpcRes.org_id, name: "Ma Boutique Principale" }]);
+          } else {
+            const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
+            if (autoWs && autoWs.org) {
+              currentActiveOrgId = autoWs.org.id;
+              setAccessibleOrgs([{ id: autoWs.org.id, name: autoWs.org.name }]);
+            }
           }
         }
 

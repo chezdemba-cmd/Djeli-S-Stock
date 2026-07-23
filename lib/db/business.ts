@@ -43,18 +43,21 @@ export async function createClient() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Promise<string | null> {
-  if (passedOrgId && passedOrgId.trim() !== '') return passedOrgId;
+  if (passedOrgId && passedOrgId.trim() !== '' && passedOrgId !== 'mock-org-id' && passedOrgId !== 'null') {
+    try {
+      const { data: checkOrg } = await supabase.from('organizations').select('id').eq('id', passedOrgId).maybeSingle();
+      if (checkOrg && checkOrg.id) return checkOrg.id;
+    } catch {}
+  }
+
   try {
     const { data: orgs } = await supabase.rpc('current_orgs');
     if (orgs && orgs.length > 0) return orgs[0];
   } catch {}
+
   try {
     const { data: mem } = await supabase.from('memberships').select('organization_id').eq('user_id', user.id).limit(1).single();
     if (mem && mem.organization_id) return mem.organization_id;
-  } catch {}
-  try {
-    const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
-    if (firstOrg && firstOrg.id) return firstOrg.id;
   } catch {}
 
   // Auto-création via la fonction RPC sécurisée (bootstrap)
@@ -65,12 +68,9 @@ async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Pro
     }
   } catch {}
 
-  // Fallback 2: via createClientWorkspace
   try {
-    const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
-    if (autoWs && autoWs.org && autoWs.org.id) {
-      return autoWs.org.id;
-    }
+    const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
+    if (firstOrg && firstOrg.id) return firstOrg.id;
   } catch {}
 
   return null;
