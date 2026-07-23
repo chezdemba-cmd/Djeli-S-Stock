@@ -463,18 +463,25 @@ export default function Home() {
     setErrorMsg(null);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const newStore = await createStore(payload) as any;
-      const mappedStore: Depot = {
-        id: newStore.id,
-        name: newStore.name,
-        city: newStore.city || '',
-        manager: 'Gérant',
-        references: 0,
-        stockValue: 0
-      };
-      setDepots(current => [mappedStore, ...current]);
-      localStorage.setItem('djelis_stores', JSON.stringify([mappedStore, ...depots]));
-      setModal(null);
+      const response = await createStore(payload) as any;
+      if (response && response.error) {
+        setErrorMsg(response.error);
+      } else {
+        const newStore = response.data;
+        const mappedStore: Depot = {
+          id: newStore.id,
+          name: newStore.name,
+          city: newStore.city || '',
+          manager: 'Gérant',
+          references: 0,
+          stockValue: 0
+        };
+        setDepots(current => [mappedStore, ...current]);
+        setStoreId(newStore.id);
+        localStorage.setItem('djelis_stores', JSON.stringify([mappedStore, ...depots]));
+        localStorage.setItem('djelis_store_id', newStore.id);
+        setModal(null);
+      }
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
     } finally {
