@@ -479,7 +479,7 @@ function ReceiptModal({ receipt, onClose, money }: { receipt: any, onClose: () =
     </div>
     <div className="form-actions wide">
       <button type="button" onClick={onClose}>Fermer</button>
-      <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#25D366', color: 'white', padding: '0 1rem', borderRadius: '8px', fontWeight: 'bold' }}>
+      <a href={url} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#25D366', color: 'white', padding: '0 1rem', borderRadius: '8px', fontWeight: 'bold' }}>
         Envoyer sur WhatsApp
       </a>
     </div>
