@@ -133,8 +133,8 @@ export default function Home() {
         setOfflineQueue(remainingQueue);
       } catch (e: any) {
         console.error("Échec de synchronisation", e);
-        // Si c'est une erreur de validation (stock, etc) ou un mock_id obsolète, on jette l'action pour ne pas bloquer la file
-        if (e.message && (e.message.includes('mock-store-id') || e.message.includes('Stock insuffisant') || e.message.includes('obligatoire'))) {
+        // Si c'est une erreur de validation (stock, Zod UUID, etc) ou un mock_id obsolète, on jette l'action
+        if (e.message && (e.message.includes('mock-store-id') || e.message.includes('uuid') || e.message.includes('Stock insuffisant') || e.message.includes('obligatoire'))) {
            remainingQueue = remainingQueue.filter(item => item.payload.idempotency_key !== action.payload.idempotency_key);
            localStorage.setItem("djelis_offline_queue", JSON.stringify(remainingQueue));
            setOfflineQueue(remainingQueue);
