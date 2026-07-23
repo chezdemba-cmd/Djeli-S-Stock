@@ -216,12 +216,21 @@ export async function createClientWorkspace(data: { name: string }) {
   if (orgErr) return { success: false, error: "Erreur Supabase (organizations): " + orgErr.message };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: storeErr } = await (supabase as any).from('stores').insert({ 
+  const { data: store, error: storeErr } = await (supabase as any).from('stores').insert({ 
     organization_id: org.id, 
     name: 'Dépôt Principal',
     active: true 
-  });
+  }).select().single();
   if (storeErr) return { success: false, error: "Erreur Supabase (stores): " + storeErr.message };
+
+  // Attribuer la propriété (membership) à l'utilisateur créateur
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('memberships').insert({
+    user_id: user.user.id,
+    organization_id: org.id,
+    store_id: store ? store.id : null,
+    role: 'owner'
+  });
 
   return { success: true, org };
 }

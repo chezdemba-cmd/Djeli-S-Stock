@@ -666,35 +666,43 @@ export default function Home() {
       <aside className="sidebar">
         <div className="brand"><div className="logo">D</div><div><h1>DJELI&apos;S</h1><p>STOCK</p></div></div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
-        {isSuperAdmin && (
-          <div className="depot" style={{ position: 'relative' }}>
-            <Warehouse size={18} />
-            <div style={{ flex: 1 }}>
-              <span>Espace Client (SaaS)</span>
-              {accessibleOrgs.length > 1 ? (
-                <select 
-                  value={activeOrgId || ''}
-                  onChange={(e) => {
-                    const newOrgId = e.target.value;
-                    setActiveOrgId(newOrgId);
-                    localStorage.setItem('djelis_active_org', newOrgId);
-                    window.location.reload();
-                  }}
-                  style={{ 
-                    background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
-                    width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
-                    fontSize: '0.9rem', fontFamily: 'inherit'
-                  }}
-                >
-                  {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
-                </select>
-              ) : (
-                <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || "Boutique principale"}</strong>
-              )}
+        <div className="depot" style={{ position: 'relative' }}>
+          <Warehouse size={18} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Entreprise / Organisation</span>
+              <button 
+                type="button" 
+                onClick={() => setModal('new_client')}
+                title="Créer une nouvelle entreprise"
+                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
+              >
+                + Créer
+              </button>
             </div>
-            {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
+            {accessibleOrgs.length > 1 ? (
+              <select 
+                value={activeOrgId || ''}
+                onChange={(e) => {
+                  const newOrgId = e.target.value;
+                  setActiveOrgId(newOrgId);
+                  localStorage.setItem('djelis_active_org', newOrgId);
+                  window.location.reload();
+                }}
+                style={{ 
+                  background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', 
+                  width: '100%', outline: 'none', appearance: 'none', cursor: 'pointer', padding: 0,
+                  fontSize: '0.9rem', fontFamily: 'inherit'
+                }}
+              >
+                {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
+              </select>
+            ) : (
+              <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || accessibleOrgs[0]?.name || "Boutique principale"}</strong>
+            )}
           </div>
-        )}
+          {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
+        </div>
         <div className="depot" style={{ position: 'relative', marginTop: isSuperAdmin ? '0.5rem' : '0', background: isSuperAdmin ? 'rgba(0,0,0,0.2)' : undefined }}>
           <Store size={18} />
           <div style={{ flex: 1 }}>
@@ -1098,17 +1106,17 @@ function ClientForm({ onClose, onSubmit, isSubmitting, errorMsg }: { onClose: ()
     <>
       <div className="modal-heading">
         <div className="modal-symbol"><Warehouse /></div>
-        <div><h2>Nouvel Espace Client</h2><p>Créer une organisation et un dépôt par défaut.</p></div>
+        <div><h2>Nouvelle Entreprise / Organisation</h2><p>Créer une entreprise et son dépôt principal par défaut.</p></div>
       </div>
       {errorMsg && <div className="alert-error" style={{ color: 'red', marginBottom: '1rem', background: '#ffebee', padding: '10px', borderRadius: '8px' }}>{errorMsg}</div>}
       <form onSubmit={onSubmit}>
-        <label className="wide">Nom de l&apos;entreprise cliente
-          <input name="name" required type="text" placeholder="Ex: Quincaillerie Beta" />
+        <label className="wide">Nom de l&apos;entreprise ou boutique
+          <input name="name" required type="text" placeholder="Ex: Ma Boutique Bamako" />
         </label>
-        <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '-0.5rem', marginBottom: '1rem' }}>Cet espace sera immédiatement disponible dans votre sélecteur.</p>
+        <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '-0.5rem', marginBottom: '1rem' }}>Cette entreprise sera immédiatement créée avec son Dépôt Principal.</p>
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>Annuler</button>
-          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Création..." : "Créer l'Espace"}</button>
+          <button className="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Création..." : "Créer l'Entreprise"}</button>
         </div>
       </form>
     </>
