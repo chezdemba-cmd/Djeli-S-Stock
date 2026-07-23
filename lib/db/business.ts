@@ -56,6 +56,15 @@ async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Pro
     const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
     if (firstOrg && firstOrg.id) return firstOrg.id;
   } catch {}
+
+  // Si aucune organisation n'existe, en créer une automatiquement sur le serveur
+  try {
+    const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
+    if (autoWs && autoWs.org && autoWs.org.id) {
+      return autoWs.org.id;
+    }
+  } catch {}
+
   return null;
 }
 
