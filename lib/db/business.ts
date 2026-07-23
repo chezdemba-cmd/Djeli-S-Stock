@@ -138,7 +138,8 @@ export async function createCustomer(data: {
 
   const parsedData = CreateCustomerSchema.parse(data);
 
-  const { data: result, error } = await supabase.from('customers').insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: result, error } = await (supabase as any).from('customers').insert({
     organization_id: orgId,
     name: parsedData.name,
     phone: parsedData.phone,
@@ -173,7 +174,8 @@ export async function createStore(data: {
 
   const parsedData = CreateStoreSchema.parse(data);
 
-  const { data: result, error } = await supabase.from('stores').insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: result, error } = await (supabase as any).from('stores').insert({
     organization_id: orgId,
     name: parsedData.name,
     city: parsedData.city,
