@@ -140,8 +140,8 @@ export async function createCustomer(data: {
     active: true
   }).select().single();
 
-  if (error) throw new Error(error.message);
-  return result;
+  if (error) return { error: error.message };
+  return { data: result };
 }
 
 const CreateStoreSchema = z.object({

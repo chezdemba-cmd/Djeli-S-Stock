@@ -340,19 +340,24 @@ export default function Home() {
     setErrorMsg(null);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const newCustomer = await createCustomer(payload) as any;
-      const mappedCustomer: Customer = {
-        id: newCustomer.id,
-        name: newCustomer.name,
-        phone: newCustomer.phone || '',
-        city: newCustomer.city || '',
-        balance: 0,
-        status: 'À jour',
-        dueDate: ''
-      };
-      setCustomers(current => [mappedCustomer, ...current]);
-      localStorage.setItem('djelis_customers', JSON.stringify([mappedCustomer, ...customers]));
-      setModal(null);
+      const response = await createCustomer(payload) as any;
+      if (response && response.error) {
+        setErrorMsg(response.error);
+      } else {
+        const newCustomer = response.data;
+        const mappedCustomer: Customer = {
+          id: newCustomer.id,
+          name: newCustomer.name,
+          phone: newCustomer.phone || '',
+          city: newCustomer.city || '',
+          balance: 0,
+          status: 'À jour',
+          dueDate: ''
+        };
+        setCustomers(current => [mappedCustomer, ...current]);
+        localStorage.setItem('djelis_customers', JSON.stringify([mappedCustomer, ...customers]));
+        setModal(null);
+      }
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
     } finally {
