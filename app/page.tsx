@@ -77,7 +77,12 @@ export default function Home() {
   const [storeId, setStoreId] = useState<string>("mock-store-id");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [accessibleOrgs, setAccessibleOrgs] = useState<{id: string, name: string}[]>([]);
-  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("djelis_active_org");
+    }
+    return null;
+  });
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {

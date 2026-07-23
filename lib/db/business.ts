@@ -41,6 +41,24 @@ export async function createClient() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveOrgId(supabase: any, user: any, passedOrgId?: string): Promise<string | null> {
+  if (passedOrgId && passedOrgId.trim() !== '') return passedOrgId;
+  try {
+    const { data: orgs } = await supabase.rpc('current_orgs');
+    if (orgs && orgs.length > 0) return orgs[0];
+  } catch {}
+  try {
+    const { data: mem } = await supabase.from('memberships').select('organization_id').eq('user_id', user.id).limit(1).single();
+    if (mem && mem.organization_id) return mem.organization_id;
+  } catch {}
+  try {
+    const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).single();
+    if (firstOrg && firstOrg.id) return firstOrg.id;
+  } catch {}
+  return null;
+}
+
 export type SaleItemInput = { product_id: string; quantity: number; unit_price: number; };
 
 export async function processSale(data: {
@@ -65,8 +83,8 @@ export async function processSale(data: {
     return { error: "Données invalides : " + e.message };
   }
 
-  const orgId = data.organization_id;
-  if (!orgId) return { error: "Organisation manquante" };
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
 
   const payload = {
     ...parsedData,
@@ -95,8 +113,8 @@ export async function payReceivable(data: {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { error: "Non autorisé" };
 
-  const orgId = data.organization_id;
-  if (!orgId) return { error: "Organisation manquante" };
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
 
   const payload = {
     ...data,
@@ -126,8 +144,8 @@ export async function createCustomer(data: {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { error: "Non autorisé (session expirée ou absente)" };
 
-  const orgId = data.organization_id;
-  if (!orgId) return { error: "Organisation manquante (activeOrgId est null)" };
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
 
   let parsedData;
   try {
@@ -165,8 +183,8 @@ export async function createStore(data: {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { error: "Non autorisé" };
 
-  const orgId = data.organization_id;
-  if (!orgId) return { error: "Organisation manquante" };
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
 
   let parsedData;
   try {
@@ -236,8 +254,8 @@ export async function createProduct(data: {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { error: "Non autorisé" };
 
-  const orgId = data.organization_id;
-  if (!orgId) return { error: "Organisation manquante" };
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
 
   let parsedData;
   try {
@@ -302,9 +320,12 @@ export async function addStockMovement(data: {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { error: "Non autorisé" };
 
+  const orgId = await resolveOrgId(supabase, user.user, data.organization_id);
+  if (!orgId) return { error: "Aucune organisation trouvée pour ce compte." };
+
   let parsedData;
   try {
-    parsedData = AddStockMovementSchema.parse(data);
+    parsedData = AddStockMovementSchema.parse({ ...data, organization_id: orgId });
   } catch (e: any) {
     return { error: "Données invalides : " + e.message };
   }
@@ -313,7 +334,7 @@ export async function addStockMovement(data: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: mvt, error: mvtErr } = await (supabase as any).from('inventory_movements').insert({
-    organization_id: parsedData.organization_id,
+    organization_id: orgId,
     store_id: parsedData.store_id,
     product_id: parsedData.product_id,
     movement_type: parsedData.movement_type,
