@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "DJELI'S STOCK",
   description: "Gestion de stock simple pour grossistes et dépôts d'Afrique de l'Ouest",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
