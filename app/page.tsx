@@ -228,17 +228,19 @@ export default function Home() {
 
         let finalStores: Depot[] = [];
         const { data: storesData } = await storesQuery;
-        if (storesData) {
+        if (storesData && storesData.length > 0) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           finalStores = storesData.map((s: any) => ({
             id: s.id, name: s.name, city: s.city || '', manager: 'Gérant', references: 0, stockValue: 0
           }));
-          setDepots(finalStores);
-          localStorage.setItem('djelis_stores', JSON.stringify(finalStores));
+        } else {
+          finalStores = [{ id: 'default-store', name: 'Dépôt Principal', city: 'Bamako', manager: 'Gérant', references: 0, stockValue: 0 }];
         }
+        setDepots(finalStores);
+        localStorage.setItem('djelis_stores', JSON.stringify(finalStores));
 
         const { data: membership } = await supabase.from('memberships').select('store_id').eq('user_id', session.user.id).limit(1).single();
-        if (membership) {
+        if (membership && (membership as any).store_id) {
           const m = membership as { store_id: string };
           setStoreId(m.store_id);
           localStorage.setItem('djelis_store_id', m.store_id);
@@ -717,10 +719,20 @@ export default function Home() {
           </div>
           {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
         </div>
-        <div className="depot" style={{ position: 'relative', marginTop: isSuperAdmin ? '0.5rem' : '0', background: isSuperAdmin ? 'rgba(0,0,0,0.2)' : undefined }}>
+        <div className="depot" style={{ position: 'relative', marginTop: '0.5rem' }}>
           <Store size={18} />
           <div style={{ flex: 1 }}>
-            <span>Dépôt Actif</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Dépôt Actif</span>
+              <button 
+                type="button" 
+                onClick={() => setModal('depot')}
+                title="Créer un nouveau dépôt"
+                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
+              >
+                + Créer
+              </button>
+            </div>
             {depots.length > 1 ? (
               <select 
                 value={storeId}
@@ -737,7 +749,7 @@ export default function Home() {
                 {depots.map(d => <option key={d.id} value={d.id} style={{ color: '#333' }}>{d.name}</option>)}
               </select>
             ) : (
-              <strong>{depots.length === 1 ? depots[0].name : "Aucun dépôt"}</strong>
+              <strong>{depots.length > 0 ? depots[0].name : "Dépôt Principal"}</strong>
             )}
           </div>
           {depots.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
