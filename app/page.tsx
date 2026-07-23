@@ -296,7 +296,8 @@ export default function Home() {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      const newCustomer = await createCustomer(payload);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newCustomer = await createCustomer(payload) as any;
       const mappedCustomer: Customer = {
         id: newCustomer.id,
         name: newCustomer.name,
@@ -332,7 +333,8 @@ export default function Home() {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      const newStore = await createStore(payload);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newStore = await createStore(payload) as any;
       const mappedStore: Depot = {
         id: newStore.id,
         name: newStore.name,
