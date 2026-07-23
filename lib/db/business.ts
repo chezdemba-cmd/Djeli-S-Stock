@@ -124,12 +124,17 @@ export async function createCustomer(data: {
 }) {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Non autorisé");
+  if (!user.user) return { error: "Non autorisé (session expirée ou absente)" };
 
   const orgId = data.organization_id;
-  if (!orgId) throw new Error("Organisation manquante");
+  if (!orgId) return { error: "Organisation manquante (activeOrgId est null)" };
 
-  const parsedData = CreateCustomerSchema.parse(data);
+  let parsedData;
+  try {
+    parsedData = CreateCustomerSchema.parse(data);
+  } catch (e: any) {
+    return { error: "Données invalides : " + e.message };
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: result, error } = await (supabase as any).from('customers').insert({
