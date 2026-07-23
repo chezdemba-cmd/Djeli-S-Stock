@@ -114,7 +114,8 @@ export default function Home() {
 
         // Fallback 1: Requête directe sur la table organizations
         if (!currentActiveOrgId) {
-          const { data: directOrgs } = await supabase.from('organizations').select('id, name').limit(10);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: directOrgs } = await (supabase as any).from('organizations').select('id, name').limit(10);
           if (directOrgs && directOrgs.length > 0) {
             currentActiveOrgId = directOrgs[0].id;
             setAccessibleOrgs(directOrgs);
