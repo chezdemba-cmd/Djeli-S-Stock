@@ -23,6 +23,15 @@ const initialCustomers: Customer[] = [
 
 const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
 
+const speak = (text: string) => {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "fr-FR";
+    window.speechSynthesis.speak(utterance);
+  }
+};
+
 const salesData = [
   { date: '11 Juil', ventes: 450000 },
   { date: '12 Juil', ventes: 520000 },
@@ -167,6 +176,7 @@ export default function Home() {
         setCustomers(current => current.map(c => c.id === customerId ? { ...c, balance: c.balance + (totalAmount - paidAmount) } : c));
       }
       
+      speak(`Vente confirmée. Total : ${totalAmount} francs.`);
       setModal(null);
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
