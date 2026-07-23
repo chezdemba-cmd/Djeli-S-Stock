@@ -6,7 +6,7 @@ import {
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
   WifiOff, Wifi, RefreshCw, Settings
 } from "lucide-react";
-import { processSale, SaleItemInput, createCustomer, createStore, createClientWorkspace } from "../lib/db/business"; // Server Actions
+import { processSale, createCustomer, createStore, createClientWorkspace } from "../lib/db/business"; // Server Actions
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { createClient } from "../lib/supabase/client";
 import { useRouter } from "next/navigation";

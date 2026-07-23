@@ -1,6 +1,14 @@
 -- 20260723160000_fix_rls.sql
 -- Correction des politiques RLS manquantes pour permettre les insertions.
 
+-- 0. S'assurer que la colonne is_super_admin existe (au cas où le script précédent a échoué)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_super_admin boolean NOT NULL DEFAULT false;
+
+-- S'assurer que vous êtes bien défini comme Super Admin
+UPDATE public.profiles 
+SET is_super_admin = true 
+WHERE id IN (SELECT id FROM auth.users WHERE email = 'chezdemba@gmail.com');
+
 -- 1. Customers (Clients)
 CREATE POLICY "Org isolation select customers" ON public.customers FOR SELECT USING (organization_id IN (SELECT public.current_orgs()));
 CREATE POLICY "Org isolation insert customers" ON public.customers FOR INSERT WITH CHECK (organization_id IN (SELECT public.current_orgs()));
