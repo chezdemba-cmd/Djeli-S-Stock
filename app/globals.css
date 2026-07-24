@@ -9,3 +9,58 @@
 .chart-card{background:white;border:1px solid var(--line);border-radius:14px;padding:20px}
 .chart-card h3{font:17px Georgia,serif;margin:0 0 15px;color:var(--ink)}
 @media(max-width:1050px){.charts-grid{grid-template-columns:1fr}}
+
+/* --- Print Styles --- */
+.printable-receipt { display: none; }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-receipt, .printable-receipt * {
+    visibility: visible;
+  }
+  .printable-receipt {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+    color: #000;
+  }
+  
+  /* Ticket de Caisse (80mm) */
+  body.print-ticket .printable-receipt {
+    width: 300px; /* ~80mm */
+    font-size: 12px;
+    font-family: monospace, sans-serif;
+  }
+  body.print-ticket .receipt-header { text-align: center; margin-bottom: 15px; }
+  body.print-ticket .receipt-header h2 { font-size: 16px; margin: 0; }
+  body.print-ticket .receipt-header p { margin: 2px 0; font-size: 11px; }
+  body.print-ticket .receipt-body { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 15px; }
+  body.print-ticket .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  body.print-ticket .receipt-row.bold { font-weight: bold; font-size: 13px; }
+  body.print-ticket .receipt-row.highlight { font-weight: bold; font-size: 13px; }
+  body.print-ticket .receipt-footer { text-align: center; margin-top: 20px; font-size: 10px; }
+
+  /* Facture A4 */
+  body.print-a4 .printable-receipt {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    font-size: 14px;
+    padding: 40px;
+  }
+  body.print-a4 .receipt-header { text-align: left; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+  body.print-a4 .receipt-header h2 { font-size: 28px; margin: 0 0 5px 0; font-family: Georgia, serif; }
+  body.print-a4 .receipt-header p { margin: 2px 0; font-size: 14px; color: #555; }
+  body.print-a4 .receipt-body { padding: 20px 0; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+  body.print-a4 .receipt-item { font-size: 16px; margin-bottom: 10px; }
+  body.print-a4 .receipt-totals { width: 50%; margin-left: auto; }
+  body.print-a4 .receipt-row { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dotted #ccc; }
+  body.print-a4 .receipt-row.bold { font-weight: bold; font-size: 16px; border-bottom: 2px solid #000; }
+  body.print-a4 .receipt-row.highlight { font-weight: bold; font-size: 16px; border-bottom: none; }
+  body.print-a4 .receipt-footer { text-align: center; margin-top: 50px; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 15px; }
+}

@@ -243,6 +243,108 @@ export async function createCustomer(data: {
   }
 }
 
+const CreateSupplierSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().optional(),
+});
+
+export async function createSupplier(data: {
+  name: string;
+  phone?: string;
+  organization_id?: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = CreateSupplierSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: result, error } = await (admin as any).from('suppliers').insert({
+      organization_id: orgId,
+      name: parsedData.name,
+      phone: parsedData.phone || '',
+      active: true
+    }).select().single();
+
+    if (error || !result) return { error: "Erreur création fournisseur : " + (error?.message || "Erreur Supabase") };
+    return { data: result };
+  } catch (e: any) {
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
+}
+
+export async function paySupplier(data: {
+  supplier_id: string;
+  amount: number;
+  payment_method: string;
+  organization_id?: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+
+    const idempotency_key = `paysup_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    // 1. Enregistrer le paiement (décaissement)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: payErr } = await (admin as any).from('payments').insert({
+      organization_id: orgId,
+      supplier_id: data.supplier_id,
+      amount: data.amount,
+      method: data.payment_method,
+      direction: 'out',
+      created_by: user.user.id,
+      idempotency_key
+    });
+
+    if (payErr) return { error: "Erreur enregistrement paiement : " + payErr.message };
+
+    // 2. Mettre à jour les payables (on simplifie : on récupère les dettes non soldées et on rembourse en cascade)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: openPayables } = await (admin as any).from('payables')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('supplier_id', data.supplier_id)
+      .in('status', ['open', 'late'])
+      .order('created_at', { ascending: true });
+
+    let remainingAmount = data.amount;
+    
+    if (openPayables) {
+      for (const p of openPayables) {
+        if (remainingAmount <= 0) break;
+        const due = p.amount - p.amount_paid;
+        if (due > 0) {
+          const applied = Math.min(due, remainingAmount);
+          remainingAmount -= applied;
+          const newPaid = p.amount_paid + applied;
+          const newStatus = newPaid >= p.amount ? 'paid' : p.status;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (admin as any).from('payables').update({ amount_paid: newPaid, status: newStatus }).eq('id', p.id);
+        }
+      }
+    }
+
+    return { data: { success: true } };
+  } catch (e: any) {
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
+}
+
 const CreateStoreSchema = z.object({
   name: z.string().min(1),
   city: z.string().optional(),
@@ -410,6 +512,9 @@ const AddStockMovementSchema = z.object({
   product_id: z.string().uuid(),
   quantity: z.number().positive(),
   movement_type: z.enum(['purchase', 'adjustment', 'correction']),
+  supplier_id: z.string().uuid().optional(),
+  payable_amount: z.number().nonnegative().optional(),
+  amount_paid: z.number().nonnegative().optional(),
 });
 
 export async function addStockMovement(data: {
@@ -418,6 +523,9 @@ export async function addStockMovement(data: {
   quantity: number;
   movement_type: 'purchase' | 'adjustment' | 'correction';
   organization_id?: string;
+  supplier_id?: string;
+  payable_amount?: number;
+  amount_paid?: number;
 }) {
   try {
     const supabase = await createClient();
@@ -437,6 +545,7 @@ export async function addStockMovement(data: {
 
     const idempotency = `mvt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+    // 1. Enregistrer le mouvement de stock
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: mvt, error: mvtErr } = await (admin as any).from('inventory_movements').insert({
       organization_id: orgId,
@@ -444,14 +553,118 @@ export async function addStockMovement(data: {
       product_id: parsedData.product_id,
       movement_type: parsedData.movement_type,
       quantity: parsedData.quantity,
-      reference_type: 'adjustment',
-      reference_id: parsedData.product_id,
+      reference_type: parsedData.movement_type === 'purchase' ? 'purchase' : 'adjustment',
+      reference_id: parsedData.product_id, // simplified, should be a real purchase order ID normally
       created_by: user.user.id,
       idempotency_key: idempotency
     }).select().single();
 
     if (mvtErr || !mvt) return { error: "Erreur mouvement stock : " + (mvtErr?.message || "Erreur Supabase") };
+
+    // 2. Si c'est un achat fournisseur avec une dette (payable)
+    if (parsedData.supplier_id && parsedData.payable_amount && parsedData.payable_amount > 0) {
+      const payableIdempotency = `payb_${idempotency}`;
+      const amountPaid = parsedData.amount_paid || 0;
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from('payables').insert({
+        organization_id: orgId,
+        supplier_id: parsedData.supplier_id,
+        store_id: targetStoreId,
+        amount: parsedData.payable_amount,
+        amount_paid: amountPaid,
+        status: amountPaid >= parsedData.payable_amount ? 'paid' : 'open',
+        created_by: user.user.id,
+        idempotency_key: payableIdempotency
+      });
+
+      // Si une partie ou tout a été payé, on trace le décaissement dans la table payments
+      if (amountPaid > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (admin as any).from('payments').insert({
+          organization_id: orgId,
+          supplier_id: parsedData.supplier_id,
+          amount: amountPaid,
+          method: 'cash', // Defaulting to cash for inline payments
+          direction: 'out',
+          created_by: user.user.id,
+          idempotency_key: `pmt_${payableIdempotency}`
+        });
+      }
+    }
+
     return { data: mvt };
+  } catch (e: any) {
+    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
+}
+
+const CreateEmployeeSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  full_name: z.string().min(1),
+  role: z.enum(['seller', 'manager']),
+  store_id: z.string().uuid(),
+  organization_id: z.string().optional(),
+});
+
+export async function createEmployee(data: {
+  email: string;
+  password: string;
+  full_name: string;
+  role: 'seller' | 'manager';
+  store_id: string;
+  organization_id?: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { error: "Non autorisé (session expirée)" };
+
+    let parsedData;
+    try {
+      parsedData = CreateEmployeeSchema.parse(data);
+    } catch (e: any) {
+      return { error: "Données invalides : " + e.message };
+    }
+
+    const admin = getAdmin();
+    const { orgId } = await getOrCreateUserOrg(user.user.id, user.user.email, data.organization_id);
+    
+    // 1. Vérifier si l'utilisateur courant a le droit (owner ou manager)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentUserRole } = await (admin as any).from('memberships').select('role').eq('user_id', user.user.id).eq('organization_id', orgId).single();
+    if (!currentUserRole || (currentUserRole.role !== 'owner' && currentUserRole.role !== 'manager')) {
+      return { error: "Accès refusé. Seul un gérant ou propriétaire peut ajouter un employé." };
+    }
+
+    // 2. Créer l'utilisateur via l'API Admin de Supabase
+    const { data: newAuthUser, error: authErr } = await admin.auth.admin.createUser({
+      email: parsedData.email,
+      password: parsedData.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: parsedData.full_name,
+        is_employee: true,
+      }
+    });
+
+    if (authErr || !newAuthUser.user) {
+       return { error: "Erreur création compte employé : " + (authErr?.message || "Erreur Supabase. L'email est peut-être déjà utilisé.") };
+    }
+
+    // 3. Lier l'employé à l'organisation
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: memErr } = await (admin as any).from('memberships').insert({
+      user_id: newAuthUser.user.id,
+      organization_id: orgId,
+      store_id: parsedData.store_id,
+      role: parsedData.role
+    });
+
+    if (memErr) return { error: "Erreur assignation rôle : " + memErr.message };
+
+    return { data: { success: true } };
   } catch (e: any) {
     return { error: "Erreur serveur : " + (e?.message || String(e)) };
   }
