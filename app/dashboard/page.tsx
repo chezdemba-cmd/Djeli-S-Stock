@@ -353,7 +353,7 @@ export default function Home() {
   const stockValue = products.reduce((sum, p) => sum + p.quantity * p.purchasePrice, 0);
   const projectedMargin = products.reduce((sum, p) => sum + p.quantity * (p.salePrice - p.purchasePrice), 0);
   const totalDebt = customers.reduce((sum, customer) => sum + customer.balance, 0);
-  const filtered = products;
+  const filtered = products; // Cache invalidation hack 1
 
   async function handleSale(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
