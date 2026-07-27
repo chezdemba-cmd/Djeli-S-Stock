@@ -146,12 +146,12 @@ export async function createPartnerWorkspace(data: {
       role: 'owner'
     });
 
-    // 6. Wait for profile trigger to finish and update it just in case
-    setTimeout(async () => {
-      try {
-        await admin.from('profiles').update({ full_name: data.owner_full_name }).eq('id', newAuthUser.user!.id);
-      } catch {}
-    }, 2000);
+    // 6. Update profile with full name
+    try {
+      await admin.from('profiles').update({ full_name: data.owner_full_name }).eq('id', newAuthUser.user.id);
+    } catch (err) {
+      console.error("Erreur mise à jour profil", err);
+    }
 
     return { success: true, org };
   } catch (e: any) {
