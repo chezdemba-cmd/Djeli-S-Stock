@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { OfflineProvider } from "./providers/OfflineProvider";
 
 export const metadata: Metadata = {
   title: "DJELI'S STOCK",
@@ -16,7 +17,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <OfflineProvider>
+          {children}
+        </OfflineProvider>
+      </body>
     </html>
   );
 }
