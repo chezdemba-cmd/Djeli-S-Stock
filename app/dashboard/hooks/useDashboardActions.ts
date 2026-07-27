@@ -1,5 +1,5 @@
 import { FormEvent, Dispatch, SetStateAction } from "react";
-import { processSale, createCustomer, createStore, createClientWorkspace, createProduct, addStockMovement, payReceivable, createEmployee, createSupplier, paySupplier, createExpense } from "../../../lib/db/business";
+import { processSale, createCustomer, createStore, createPartnerWorkspace, createProduct, addStockMovement, payReceivable, createEmployee, createSupplier, paySupplier, createExpense } from "../../../lib/db/business";
 import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction } from "../types";
 import { useOffline } from "../../providers/OfflineProvider";
 
@@ -357,11 +357,16 @@ export function useDashboardActions(
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const payload = { name: formData.get("name") as string };
+    const payload = { 
+      name: formData.get("name") as string,
+      owner_full_name: formData.get("owner_full_name") as string,
+      owner_email: formData.get("owner_email") as string,
+      owner_password: formData.get("owner_password") as string,
+    };
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      const result = await createClientWorkspace(payload);
+      const result = await createPartnerWorkspace(payload);
       if (result && !result.success) {
         setErrorMsg(result.error || "Erreur inconnue");
       } else {

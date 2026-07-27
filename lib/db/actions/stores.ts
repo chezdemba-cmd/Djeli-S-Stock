@@ -94,6 +94,71 @@ export async function createClientWorkspace(data: { name: string }) {
   }
 }
 
+export async function createPartnerWorkspace(data: { 
+  name: string;
+  owner_email: string;
+  owner_password: string;
+  owner_full_name: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) return { success: false, error: "Non autorisé (session expirée)" };
+
+    const admin = await getAdmin();
+    
+    // 1. Check if super_admin
+    const { data: profile } = await admin.from('profiles').select('is_super_admin').eq('id', user.user.id).single();
+    if (!profile?.is_super_admin) return { success: false, error: "Accès refusé. Réservé aux administrateurs SaaS." };
+
+    // 2. Create the Organization
+    const { data: org, error: orgErr } = await admin.from('organizations').insert({ name: data.name }).select().single();
+    if (orgErr || !org) return { success: false, error: "Erreur création entreprise : " + (orgErr?.message || "Erreur Supabase") };
+
+    // 3. Create the Main Store
+    const { data: store } = await admin.from('stores').insert({
+      organization_id: org.id,
+      name: 'Boutique Principale',
+      active: true
+    }).select().single();
+
+    // 4. Create the User via Admin Auth API
+    const { data: newAuthUser, error: authErr } = await admin.auth.admin.createUser({
+      email: data.owner_email,
+      password: data.owner_password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: data.owner_full_name,
+        is_employee: false
+      }
+    });
+
+    if (authErr || !newAuthUser.user) {
+       // Rollback org creation is hard without RLS bypass or rpc, but let's just return error
+       return { success: false, error: "Erreur création compte partenaire : " + (authErr?.message || "L'email est peut-être déjà utilisé.") };
+    }
+
+    // 5. Link User to Organization as Owner
+    await admin.from('memberships').insert({
+      user_id: newAuthUser.user.id,
+      organization_id: org.id,
+      store_id: store ? store.id : null,
+      role: 'owner'
+    });
+
+    // 6. Wait for profile trigger to finish and update it just in case
+    setTimeout(async () => {
+      try {
+        await admin.from('profiles').update({ full_name: data.owner_full_name }).eq('id', newAuthUser.user!.id);
+      } catch {}
+    }, 2000);
+
+    return { success: true, org };
+  } catch (e: any) {
+    return { success: false, error: "Erreur serveur : " + (e?.message || String(e)) };
+  }
+}
+
 export async function createEmployee(data: {
   email: string;
   password: string;

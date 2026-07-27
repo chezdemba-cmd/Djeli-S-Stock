@@ -799,8 +799,8 @@ export function ClientForm({
           <Warehouse />
         </div>
         <div>
-          <h2>Nouvelle Entreprise / Organisation</h2>
-          <p>Créer une entreprise et son dépôt principal par défaut.</p>
+          <h2>Nouveau Partenaire (Client SaaS)</h2>
+          <p>Créer un environnement complet et son compte d'accès gérant.</p>
         </div>
       </div>
       {errorMsg && (
@@ -813,18 +813,30 @@ export function ClientForm({
       )}
       <form onSubmit={onSubmit}>
         <label className="wide">
-          Nom de l'entreprise ou boutique
+          Nom de la structure (Boutique)
           <input name="name" required type="text" placeholder="Ex: Ma Boutique Bamako" />
         </label>
+        <label className="wide" style={{ marginTop: '10px' }}>
+          Nom complet du Gérant
+          <input name="owner_full_name" required type="text" placeholder="Ex: Moussa Diarra" />
+        </label>
+        <label className="wide" style={{ marginTop: '10px' }}>
+          Email de connexion
+          <input name="owner_email" required type="email" placeholder="Ex: moussa@example.com" />
+        </label>
+        <label className="wide" style={{ marginTop: '10px', marginBottom: '15px' }}>
+          Mot de passe initial
+          <input name="owner_password" required type="password" placeholder="Minimum 6 caractères" minLength={6} />
+        </label>
         <p style={{ fontSize: "0.85rem", color: "#666", marginTop: "-0.5rem", marginBottom: "1rem" }}>
-          Cette entreprise sera immédiatement créée avec son Dépôt Principal.
+          Un compte gérant sera créé avec ces identifiants et lié à cette nouvelle structure.
         </p>
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             Annuler
           </button>
           <button className="primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Création..." : "Créer l'Entreprise"}
+            {isSubmitting ? "Création..." : "Créer le Partenaire"}
           </button>
         </div>
       </form>
