@@ -1,42 +1,71 @@
+import { useState } from "react";
 import { Product, Movement, Depot, Customer, Supplier } from "../types";
+import { Search } from "lucide-react";
 
 export function ProductTable({ products }: { products: Product[] }) {
+  const [search, setSearch] = useState("");
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
+  
+  const filtered = products.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase()) || 
+    p.sku.toLowerCase().includes(search.toLowerCase()) ||
+    p.category.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th>Catégorie</th>
-            <th>Stock</th>
-            <th>Prix de vente</th>
-            <th>État</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p.id}>
-              <td>
-                <strong>{p.name}</strong>
-                <span>{p.sku}</span>
-              </td>
-              <td>{p.category}</td>
-              <td>
-                <strong>
-                  {p.quantity} {p.unit.toLowerCase()}s
-                </strong>
-              </td>
-              <td>{money.format(p.salePrice)}</td>
-              <td>
-                <span className={`status ${p.quantity <= p.minStock ? "danger" : "ok"}`}>
-                  {p.quantity <= p.minStock ? "Stock faible" : "Disponible"}
-                </span>
-              </td>
+    <div>
+      <div style={{ padding: '0 18px 15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: 'min(100%, 350px)' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#6c7773' }} />
+          <input 
+            type="text" 
+            placeholder="Rechercher un produit, SKU ou catégorie..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '10px 10px 10px 35px', borderRadius: '8px', border: '1px solid #e7e8e3', outline: 'none', fontSize: '13px' }}
+          />
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Catégorie</th>
+              <th>Stock</th>
+              <th>Prix de vente</th>
+              <th>État</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <strong>{p.name}</strong>
+                  <span>{p.sku}</span>
+                </td>
+                <td>{p.category}</td>
+                <td>
+                  <strong>
+                    {p.quantity} {p.unit.toLowerCase()}s
+                  </strong>
+                </td>
+                <td>{money.format(p.salePrice)}</td>
+                <td>
+                  <span className={`status ${p.quantity <= p.minStock ? "danger" : "ok"}`}>
+                    {p.quantity <= p.minStock ? "Stock faible" : "Disponible"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#666' }}>Aucun produit ne correspond à votre recherche.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -111,11 +140,29 @@ export function DepotTable({ depots }: { depots: Depot[] }) {
 }
 
 export function CustomerTable({ customers, onPay }: { customers: Customer[]; onPay: (c: Customer) => void }) {
+  const [search, setSearch] = useState("");
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
-  if (customers.length === 0)
-    return <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Aucun client enregistré.</div>;
+  
+  const filtered = customers.filter(c => 
+    c.name.toLowerCase().includes(search.toLowerCase()) || 
+    c.phone.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="table-wrap">
+    <div>
+      <div style={{ padding: '0 18px 15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: 'min(100%, 350px)' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#6c7773' }} />
+          <input 
+            type="text" 
+            placeholder="Rechercher un client (nom, téléphone)..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '10px 10px 10px 35px', borderRadius: '8px', border: '1px solid #e7e8e3', outline: 'none', fontSize: '13px' }}
+          />
+        </div>
+      </div>
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -128,7 +175,12 @@ export function CustomerTable({ customers, onPay }: { customers: Customer[]; onP
           </tr>
         </thead>
         <tbody>
-          {customers.map((c) => (
+          {filtered.length === 0 && (
+            <tr>
+              <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#666' }}>Aucun client trouvé.</td>
+            </tr>
+          )}
+          {filtered.map((c) => (
             <tr key={c.id}>
               <td>
                 <strong>{c.name}</strong>
@@ -160,6 +212,7 @@ export function CustomerTable({ customers, onPay }: { customers: Customer[]; onP
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
