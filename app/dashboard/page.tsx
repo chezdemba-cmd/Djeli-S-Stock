@@ -25,6 +25,7 @@ export default function Home() {
   const router = useRouter();
   
   const [tab, setTab] = useState("Tableau de bord");
+  const [dateFilter, setDateFilter] = useState("all");
   const [modal, setModal] = useState<"product" | "movement" | "customer" | "supplier" | "depot" | "sale" | "receipt" | "new_client" | "inflow" | "payment" | "pay_supplier" | "new_employee" | "expense" | null>(null);
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<Customer | null>(null);
   const [selectedSupplierForPayment, setSelectedSupplierForPayment] = useState<Supplier | null>(null);
@@ -48,9 +49,28 @@ export default function Home() {
   const {
     handleSale, handleCreateProduct, handleAddStockMovementForm,
     handlePayCustomerReceivableForm, handlePaySupplierForm,
-    handleCreateCustomer, handleCreateSupplier, handleCreateDepot,
     handleCreateClientWorkspaceForm, handleCreateEmployee, handleCreateExpense
   } = useDashboardActions(data, isOnline, queueOfflineAction, setIsSubmitting, setErrorMsg, setModal, setLastReceipt);
+
+  const filterByDate = (rawDate: string | undefined) => {
+    if (!rawDate || dateFilter === "all") return true;
+    const date = new Date(rawDate);
+    const now = new Date();
+    if (dateFilter === "today") {
+      return date.toDateString() === now.toDateString();
+    }
+    if (dateFilter === "week") {
+      const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
+      return date >= firstDay;
+    }
+    if (dateFilter === "month") {
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }
+    return true;
+  };
+
+  const periodSales = treasuryTransactions.filter(t => t.flow_direction === 'in' && filterByDate(t.rawDate)).reduce((acc, t) => acc + t.net_amount, 0);
+  const periodExpenses = treasuryTransactions.filter(t => t.flow_direction === 'out' && filterByDate(t.rawDate)).reduce((acc, t) => acc + t.net_amount, 0);
 
   const nav = [
     { label: "Tableau de bord", icon: BarChart3 },
@@ -183,15 +203,37 @@ export default function Home() {
         </header>
 
         {tab === "Tableau de bord" && <>
-          <section className="welcome"><div><span>VUE D’ENSEMBLE</span><h2>Bonjour, votre boutique est sous contrôle.</h2><p>Voici la situation de vos marchandises aujourd’hui.</p></div></section>
-          <section className="metrics">
-            <Metric icon={Boxes} tone="green" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives`} />
-            <Metric icon={ArrowUpRight} tone="gold" label="Marge potentielle" value={userRole !== 'seller' ? money.format(projectedMargin) : '***'} detail="Sur le stock disponible" />
-            <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={userRole !== 'seller' ? money.format(totalDebt) : '***'} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente`} />
-            <Metric icon={AlertTriangle} tone="red" label="Alertes de stock" value={String(lowStock.length)} detail="À réapprovisionner" />
+          <section className="welcome">
+            <div>
+              <span>VUE D’ENSEMBLE</span>
+              <h2>Bonjour, votre boutique est sous contrôle.</h2>
+              <p>Voici la situation de vos marchandises.</p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px 15px', borderRadius: '10px' }}>
+              <label style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Période d'analyse :</label>
+              <select 
+                value={dateFilter} 
+                onChange={e => setDateFilter(e.target.value)}
+                style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 10px', borderRadius: '6px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="today" style={{ color: 'black' }}>Aujourd'hui</option>
+                <option value="week" style={{ color: 'black' }}>Cette Semaine</option>
+                <option value="month" style={{ color: 'black' }}>Ce Mois-ci</option>
+                <option value="all" style={{ color: 'black' }}>Global (Tout)</option>
+              </select>
+            </div>
+          </section>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 10px' }}>
+            <h3 style={{ fontSize: '16px', margin: 0 }}>Statistiques : {dateFilter === 'all' ? 'Globales' : (dateFilter === 'today' ? 'Aujourd\'hui' : (dateFilter === 'week' ? 'Cette Semaine' : 'Ce Mois-ci'))}</h3>
+          </div>
+          <section className="metrics" style={{ marginBottom: '10px' }}>
+            <Metric icon={Wallet} tone="green" label="Entrées (Ventes & Créances)" value={userRole !== 'seller' ? money.format(periodSales) : '***'} detail="Sur la période sélectionnée" />
+            <Metric icon={ArrowDownLeft} tone="red" label="Sorties (Dépenses & Paiements)" value={userRole !== 'seller' ? money.format(periodExpenses) : '***'} detail="Sur la période sélectionnée" />
+            <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={userRole !== 'seller' ? money.format(totalDebt) : '***'} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente (Global)`} />
+            <Metric icon={Boxes} tone="gold" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives (Global)`} />
           </section>
 
-          <Charts money={money} />
         </>}
 
         {tab === "Produits" && <section className="panel page-panel">

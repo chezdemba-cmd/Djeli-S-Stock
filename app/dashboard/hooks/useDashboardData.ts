@@ -183,6 +183,7 @@ export function useDashboardData() {
               type: m.movement_type === 'sale' ? 'Vente' : (m.movement_type === 'purchase' ? 'Entrée' : 'Sortie'),
               quantity: Math.abs(Number(m.quantity)),
               date: new Date(m.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+              rawDate: m.created_at,
               author: 'Système'
             }));
             setMovements(mappedMovs);
@@ -202,6 +203,7 @@ export function useDashboardData() {
               description: t.description,
               payment_method: t.payment_method,
               date: new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+              rawDate: t.created_at,
               author: t.profiles ? t.profiles.full_name : 'Système'
             }));
             setTreasuryTransactions(mappedTreasury);
