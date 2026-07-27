@@ -90,8 +90,8 @@ export default function Home() {
   return (
     <main className={`app-container ${mobileNav ? "nav-open" : ""}`}>
       <aside className="sidebar">
-        <div className="brand" style={{ padding: '10px 0', justifyContent: 'center' }}>
-          <img src="/logo.png" alt="Djeli's Stock Logo" style={{ maxWidth: '160px', height: 'auto' }} />
+        <div className="brand" style={{ padding: '15px 0', justifyContent: 'center' }}>
+          <h1 className="logo" style={{ fontSize: '1.2rem', margin: 0 }}>DJELI'S <span style={{ color: 'var(--primary)' }}>STOCK</span></h1>
         </div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
         <div className="depot" style={{ position: 'relative' }}>
