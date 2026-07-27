@@ -20,6 +20,7 @@ export function useDashboardData() {
   
   const [sessionLoading, setSessionLoading] = useState(true);
   const [storeId, setStoreId] = useState<string>("mock-store-id");
+  const [userRole, setUserRole] = useState<string>("seller");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [accessibleOrgs, setAccessibleOrgs] = useState<{id: string, name: string}[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(() => {
@@ -222,14 +223,18 @@ export function useDashboardData() {
         const { data: employeesData } = await employeesQuery;
         if (employeesData) setEmployees(employeesData);
 
-        const { data: membership } = await supabase.from('memberships').select('store_id').eq('user_id', session.user.id).limit(1).single();
+        const { data: membership } = await supabase.from('memberships').select('store_id, role').eq('user_id', session.user.id).eq('organization_id', currentActiveOrgId).limit(1).single();
         if (membership && (membership as { store_id?: string | null }).store_id) {
-          const m = membership as { store_id: string };
+          const m = membership as { store_id: string, role: string };
           setStoreId(m.store_id);
+          setUserRole(m.role || 'seller');
           localStorage.setItem('djelis_store_id', m.store_id);
+          localStorage.setItem('djelis_user_role', m.role || 'seller');
         } else if (finalStores.length > 0) {
           setStoreId(finalStores[0].id);
+          setUserRole('seller');
           localStorage.setItem('djelis_store_id', finalStores[0].id);
+          localStorage.setItem('djelis_user_role', 'seller');
         }
       } else {
         setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
@@ -237,6 +242,7 @@ export function useDashboardData() {
         setSuppliers(JSON.parse(localStorage.getItem('djelis_suppliers') || "[]"));
         setDepots(JSON.parse(localStorage.getItem('djelis_stores') || "[]"));
         setStoreId(localStorage.getItem('djelis_store_id') || "mock-store-id");
+        setUserRole(localStorage.getItem('djelis_user_role') || "seller");
       }
       setSessionLoading(false);
     };
@@ -269,6 +275,7 @@ export function useDashboardData() {
     treasuryTransactions, setTreasuryTransactions,
     sessionLoading,
     storeId, setStoreId,
+    userRole, setUserRole,
     isSuperAdmin, setIsSuperAdmin,
     accessibleOrgs, setAccessibleOrgs,
     activeOrgId, setActiveOrgId,

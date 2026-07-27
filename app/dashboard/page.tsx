@@ -38,7 +38,7 @@ export default function Home() {
   const data = useDashboardData();
   const {
     products, movements, customers, suppliers, depots, employees,
-    sessionLoading, storeId, setStoreId, isSuperAdmin,
+    sessionLoading, storeId, setStoreId, userRole, isSuperAdmin,
     accessibleOrgs, activeOrgId, setActiveOrgId,
     lowStock, stockValue, projectedMargin, totalDebt, filtered,
     treasuryTransactions, treasuryIn, treasuryOut, netBalance
@@ -58,7 +58,8 @@ export default function Home() {
     { label: "Mouvements", icon: ArrowDownLeft },
     { label: "Clients", icon: Users },
     { label: "Fournisseurs", icon: Truck },
-    { label: "Équipe", icon: UserPlus },
+    ...(userRole !== 'seller' ? [{ label: "Trésorerie", icon: Wallet }] : []),
+    ...(userRole !== 'seller' ? [{ label: "Équipe", icon: UserPlus }] : []),
     ...(isSuperAdmin ? [{ label: "SaaS Admin", icon: Settings }] : [])
   ];
 
@@ -182,9 +183,9 @@ export default function Home() {
         {tab === "Tableau de bord" && <>
           <section className="welcome"><div><span>VUE D’ENSEMBLE</span><h2>Bonjour, votre dépôt est sous contrôle.</h2><p>Voici la situation de vos marchandises aujourd’hui.</p></div></section>
           <section className="metrics">
-            <Metric icon={Boxes} tone="green" label="Valeur du stock" value={money.format(stockValue)} detail={`${products.length} références actives`} />
-            <Metric icon={ArrowUpRight} tone="gold" label="Marge potentielle" value={money.format(projectedMargin)} detail="Sur le stock disponible" />
-            <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={money.format(totalDebt)} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente`} />
+            <Metric icon={Boxes} tone="green" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives`} />
+            <Metric icon={ArrowUpRight} tone="gold" label="Marge potentielle" value={userRole !== 'seller' ? money.format(projectedMargin) : '***'} detail="Sur le stock disponible" />
+            <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={userRole !== 'seller' ? money.format(totalDebt) : '***'} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente`} />
             <Metric icon={AlertTriangle} tone="red" label="Alertes de stock" value={String(lowStock.length)} detail="À réapprovisionner" />
           </section>
 
@@ -192,16 +193,20 @@ export default function Home() {
         </>}
 
         {tab === "Produits" && <section className="panel page-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
-            <button className="button-secondary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Arrivage / Entrée</button>
-            <button className="primary" onClick={() => setModal("product")}>+ Ajouter un produit</button>
-          </div>
+          {userRole !== 'seller' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button className="button-secondary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Arrivage / Entrée</button>
+              <button className="primary" onClick={() => setModal("product")}>+ Ajouter un produit</button>
+            </div>
+          )}
           <ProductTable products={filtered} />
         </section>}
         {tab === "Mouvements" && <section className="panel page-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="primary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Enregistrer un Arrivage</button>
-          </div>
+          {userRole !== 'seller' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <button className="primary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Enregistrer un Arrivage</button>
+            </div>
+          )}
           <MovementTable movements={movements} />
         </section>}
         {tab === "Dépôts" && <section className="panel page-panel">
@@ -217,9 +222,11 @@ export default function Home() {
           <CustomerTable customers={customers} onPay={(c) => { setSelectedCustomerForPayment(c); setModal("payment"); }} />
         </section>}
         {tab === "Fournisseurs" && <section className="panel page-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="primary" onClick={() => setModal("supplier")}>+ Nouveau Fournisseur</button>
-          </div>
+          {userRole !== 'seller' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <button className="primary" onClick={() => setModal("supplier")}>+ Nouveau Fournisseur</button>
+            </div>
+          )}
           <SupplierTable suppliers={suppliers} onPay={(s) => { setSelectedSupplierForPayment(s); setModal("pay_supplier"); }} />
         </section>}
         {tab === "Équipe" && <section className="panel page-panel">
@@ -227,6 +234,16 @@ export default function Home() {
             <button className="primary" onClick={() => setModal("new_employee")}>+ Ajouter un employé</button>
           </div>
           <EmployeeTable employees={employees} />
+        </section>}
+        {tab === "Trésorerie" && <section className="panel page-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>Caisse & Dépenses</h2>
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>Solde Net: {money.format(netBalance)}</p>
+            </div>
+            <button className="button-secondary" onClick={() => setModal("expense")} style={{ color: '#d32f2f', borderColor: '#d32f2f' }}>+ Nouvelle Dépense</button>
+          </div>
+          <TreasuryTable transactions={treasuryTransactions} />
         </section>}
         {tab === "SaaS Admin" && isSuperAdmin && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
@@ -270,6 +287,7 @@ export default function Home() {
           {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} onClose={() => setModal(null)} money={money} />}
           {modal === "new_client" && <ClientForm onClose={() => setModal(null)} onSubmit={handleCreateClientWorkspaceForm} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "new_employee" && <EmployeeForm depots={depots} onClose={() => setModal(null)} onSubmit={handleCreateEmployee} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
+          {modal === "expense" && <ExpenseForm onClose={() => setModal(null)} onSubmit={handleCreateExpense} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
         </div>
       </div>}
     </main>
