@@ -78,12 +78,12 @@ export default function Home() {
           <Warehouse size={18} />
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Entreprise / Organisation</span>
-              {isSuperAdmin && (
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Structure</span>
+              {(isSuperAdmin || userRole !== 'seller') && (
                 <button 
                   type="button" 
                   onClick={() => setModal('new_client')}
-                  title="Créer une nouvelle entreprise"
+                  title="Créer une nouvelle structure"
                   style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
                 >
                   + Créer
@@ -108,7 +108,7 @@ export default function Home() {
                 {accessibleOrgs.map(org => <option key={org.id} value={org.id} style={{ color: '#333' }}>{org.name}</option>)}
               </select>
             ) : (
-              <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || accessibleOrgs[0]?.name || "Boutique principale"}</strong>
+              <strong>{accessibleOrgs.find(o => o.id === activeOrgId)?.name || accessibleOrgs[0]?.name || "Structure principale"}</strong>
             )}
           </div>
           {accessibleOrgs.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
@@ -118,14 +118,16 @@ export default function Home() {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Dépôt Actif</span>
-              <button 
-                type="button" 
-                onClick={() => setModal('depot')}
-                title="Créer un nouveau dépôt"
-                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
-              >
-                + Créer
-              </button>
+              {userRole !== 'seller' && (
+                <button 
+                  type="button" 
+                  onClick={() => setModal('depot')}
+                  title="Créer un nouveau dépôt"
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
+                >
+                  + Créer
+                </button>
+              )}
             </div>
             <select 
               value={storeId}
@@ -248,14 +250,14 @@ export default function Home() {
         {tab === "SaaS Admin" && isSuperAdmin && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
             <div>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>Administration Multi-Clients</h2>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>Administration Multi-Structures</h2>
               <p style={{ color: '#666', fontSize: '0.9rem' }}>Gérez les espaces de travail de vos clients.</p>
             </div>
-            <button className="primary" onClick={() => setModal('new_client')}>+ Nouvel Espace Client</button>
+            <button className="primary" onClick={() => setModal('new_client')}>+ Nouvelle Structure</button>
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>ID</th><th>Nom du Client (Organisation)</th><th>Statut</th><th>Actions</th></tr></thead>
+              <thead><tr><th>ID</th><th>Nom de la Structure</th><th>Statut</th><th>Actions</th></tr></thead>
               <tbody>
                 {accessibleOrgs.map(org => (
                   <tr key={org.id}>

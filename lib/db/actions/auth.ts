@@ -71,10 +71,10 @@ export async function getOrCreateUserOrg(userId: string, email?: string, passedO
   }
 
   // 4. Auto-création complète (Organisation + Dépôt Principal + Membership owner)
-  const name = email ? `${email.split('@')[0]} Boutique` : "Ma Boutique Principale";
+  const name = email ? `Structure ${email.split('@')[0]}` : "Structure Principale";
   const { data: newOrg, error: orgErr } = await admin.from('organizations').insert({ name }).select().single();
   if (orgErr || !newOrg) {
-    throw new Error("Impossible de créer l'entreprise : " + (orgErr?.message || "Erreur Supabase"));
+    throw new Error("Impossible de créer la structure : " + (orgErr?.message || "Erreur Supabase"));
   }
 
   const { data: newStore } = await admin.from('stores').insert({

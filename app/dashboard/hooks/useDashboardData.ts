@@ -70,12 +70,12 @@ export function useDashboardData() {
         // Fallback 2: Auto-création via RPC bootstrap
         if (!currentActiveOrgId) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: rpcRes } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: "Ma Boutique Principale" });
+          const { data: rpcRes } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: "Structure Principale" });
           if (rpcRes && rpcRes.success && rpcRes.org_id) {
             currentActiveOrgId = rpcRes.org_id;
-            setAccessibleOrgs([{ id: rpcRes.org_id, name: "Ma Boutique Principale" }]);
+            setAccessibleOrgs([{ id: rpcRes.org_id, name: "Structure Principale" }]);
           } else {
-            const autoWs = await createClientWorkspace({ name: "Ma Boutique Principale" });
+            const autoWs = await createClientWorkspace({ name: "Structure Principale" });
             if (autoWs && autoWs.org) {
               currentActiveOrgId = autoWs.org.id;
               setAccessibleOrgs([{ id: autoWs.org.id, name: autoWs.org.name }]);
