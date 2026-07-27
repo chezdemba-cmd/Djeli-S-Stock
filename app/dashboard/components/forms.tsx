@@ -886,7 +886,7 @@ export function EmployeeForm({
             </select>
           </label>
           <label>
-            Dépôt assigné
+            Boutique assignée
             <select name="store_id" required>
               {depots.map((d) => (
                 <option key={d.id} value={d.id}>
