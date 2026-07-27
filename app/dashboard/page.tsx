@@ -69,7 +69,9 @@ export default function Home() {
   return (
     <main className={`app-container ${mobileNav ? "nav-open" : ""}`}>
       <aside className="sidebar">
-        <div className="brand"><div className="logo">D</div><div><h1>DJELI&apos;S</h1><p>STOCK</p></div></div>
+        <div className="brand" style={{ padding: '10px 0', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="Djeli's Stock Logo" style={{ maxWidth: '160px', height: 'auto' }} />
+        </div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
         <div className="depot" style={{ position: 'relative' }}>
           <Warehouse size={18} />

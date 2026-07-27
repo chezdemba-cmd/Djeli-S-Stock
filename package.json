@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "jest"
+    "test": "jest",
+    "generate-icons": "node generate-icons.js"
   },
   "dependencies": {
     "@serwist/next": "^9.5.12",
@@ -30,6 +31,7 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "16.2.10",
     "jest": "^30.4.2",
+    "sharp": "^0.35.3",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.0"

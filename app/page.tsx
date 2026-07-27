@@ -67,9 +67,7 @@ export default function LoginPage() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f8f5", padding: "20px" }}>
       <div style={{ background: "white", padding: "40px", borderRadius: "18px", boxShadow: "0 12px 24px rgba(23,63,53,.08)", width: "100%", maxWidth: "400px" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-          <div style={{ width: "60px", height: "60px", background: "#e7f1ed", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "#173f35" }}>
-            <Warehouse size={32} />
-          </div>
+          <img src="/logo.png" alt="Djeli's Stock Logo" style={{ maxWidth: "150px", height: "auto" }} />
         </div>
         
         <h1 style={{ fontFamily: "Georgia, serif", fontSize: "24px", textAlign: "center", margin: "0 0 10px 0", color: "#173f35" }}>
