@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from "react";
 import { Product, Customer, Supplier, Depot } from "../types";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { useOffline } from "../../providers/OfflineProvider";
+import { BarcodeScanner } from "./BarcodeScanner";
 import {
   ShoppingCart,
   Boxes,
@@ -35,27 +36,15 @@ export function SaleForm({
   const [scanning, setScanning] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
 
-  useEffect(() => {
-    if (scanning) {
-      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
-      scanner.render((decodedText) => {
-        scanner.clear();
-        setScanning(false);
-        const p = products.find(prod => prod.sku === decodedText);
-        if (p) {
-          setSelectedProduct(p.id);
-          setPaid(p.salePrice * qty);
-        } else {
-          alert("Produit non trouvé avec ce code-barres.");
-        }
-      }, (error) => {
-        // ignore error
-      });
-      return () => {
-        scanner.clear().catch(console.error);
-      };
+  const handleScan = (decodedText: string) => {
+    const p = products.find(prod => prod.sku === decodedText);
+    if (p) {
+      setSelectedProduct(p.id);
+      setPaid(p.salePrice * qty);
+    } else {
+      alert("Produit non trouvé avec ce code-barres.");
     }
-  }, [scanning, products, qty]);
+  };
 
   // Handle physical scanner (typing fast)
   useEffect(() => {
@@ -124,11 +113,11 @@ export function SaleForm({
           autoFocus
           style={{ flex: 1, padding: "8px" }}
         />
-        <button type="button" onClick={() => setScanning(!scanning)} className="button-secondary">
-          {scanning ? "Fermer Caméra" : "Scanner (Caméra)"}
+        <button type="button" onClick={() => setScanning(true)} className="button-secondary">
+          📷 Scanner
         </button>
       </div>
-      {scanning && <div id="reader" style={{ width: "100%", marginBottom: "1rem" }}></div>}
+      {scanning && <BarcodeScanner onScan={handleScan} onClose={() => setScanning(false)} />}
       <form onSubmit={onSubmit}>
 
         <label className="wide">
@@ -244,6 +233,9 @@ export function ProductForm({
   isSubmitting: boolean;
   errorMsg: string | null;
 }) {
+  const [sku, setSku] = useState("");
+  const [scanning, setScanning] = useState(false);
+
   return (
     <>
       <div className="modal-heading">
@@ -264,9 +256,16 @@ export function ProductForm({
         </div>
       )}
       <form onSubmit={onSubmit}>
-                <label className="wide">
-          Code-barres / SKU (Optionnel) <input type="text" name="sku" placeholder="Laissez vide pour auto-générer" />
-        </label>
+        <div className="wide" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+          <label style={{ display: "flex", justifyContent: "space-between" }}>
+            Code-barres / SKU (Optionnel)
+            <button type="button" onClick={() => setScanning(true)} style={{ background: "transparent", border: "none", color: "#173f35", cursor: "pointer", fontSize: "0.85rem", fontWeight: "bold" }}>
+              📷 Scanner
+            </button>
+          </label>
+          <input type="text" name="sku" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Laissez vide pour auto-générer" style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "8px" }} />
+          {scanning && <BarcodeScanner onScan={(code) => { setSku(code); setScanning(false); }} onClose={() => setScanning(false)} />}
+        </div>
         <label className="wide">
           Nom du produit <input required type="text" name="name" placeholder="Ex: Riz Parfumé 25kg" />
         </label>
@@ -330,6 +329,7 @@ export function StockInflowForm({
   const [hasSupplier, setHasSupplier] = useState(false);
   const [payableAmount, setPayableAmount] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0);
+  const [scanning, setScanning] = useState(false);
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
 
   return (
@@ -352,13 +352,19 @@ export function StockInflowForm({
         </div>
       )}
       <form onSubmit={onSubmit}>
-        <label className="wide">
-          Produit livré
+        <div className="wide" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+          <label style={{ display: "flex", justifyContent: "space-between" }}>
+            Produit livré
+            <button type="button" onClick={() => setScanning(true)} style={{ background: "transparent", border: "none", color: "#173f35", cursor: "pointer", fontSize: "0.85rem", fontWeight: "bold" }}>
+              📷 Scanner
+            </button>
+          </label>
           <select
             name="product_id"
             required
             value={selectedProduct}
             onChange={(e) => setSelectedProduct(e.target.value)}
+            style={{ width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: "8px" }}
           >
             <option value="" disabled>
               Sélectionner un produit...
@@ -369,7 +375,13 @@ export function StockInflowForm({
               </option>
             ))}
           </select>
-        </label>
+          {scanning && <BarcodeScanner onScan={(code) => {
+            const p = products.find(prod => prod.sku === code);
+            if (p) setSelectedProduct(p.id);
+            else alert("Produit introuvable avec ce code-barres.");
+            setScanning(false);
+          }} onClose={() => setScanning(false)} />}
+        </div>
         <label className="wide">
           Quantité reçue
           <input
