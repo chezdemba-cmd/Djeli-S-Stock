@@ -234,6 +234,29 @@ export default function Home() {
             <Metric icon={Boxes} tone="gold" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives (Global)`} />
           </section>
 
+          {lowStock.length > 0 && (
+            <section className="panel page-panel" style={{ marginTop: '20px', borderLeft: '4px solid #c7463d' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div>
+                  <h3 style={{ fontSize: '16px', margin: 0, color: '#c7463d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={18} /> {lowStock.length} Produit(s) en rupture de stock
+                  </h3>
+                  <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#666' }}>Pensez à réapprovisionner ces articles au plus vite.</p>
+                </div>
+                <button 
+                  className="button-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                  onClick={() => {
+                    const text = `⚠️ *ALERTE RUPTURE DE STOCK - DJELI'S STOCK* ⚠️\n\nLes produits suivants doivent être réapprovisionnés :\n\n${lowStock.map(p => `- ${p.name} (Reste: ${p.quantity})`).join('\n')}\n\nMerci de faire le nécessaire.`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                >
+                  Partager sur WhatsApp
+                </button>
+              </div>
+            </section>
+          )}
+
         </>}
 
         {tab === "Produits" && <section className="panel page-panel">
