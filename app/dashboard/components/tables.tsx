@@ -79,13 +79,13 @@ export function MovementTable({ movements }: { movements: Movement[] }) {
 export function DepotTable({ depots }: { depots: Depot[] }) {
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
   if (depots.length === 0)
-    return <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Aucun dépôt configuré.</div>;
+    return <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Aucune boutique configurée.</div>;
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Dépôt</th>
+            <th>Boutique</th>
             <th>Ville</th>
             <th>Gérant</th>
             <th>Références</th>
@@ -227,7 +227,7 @@ export function EmployeeTable({ employees }: { employees: any[] }) {
           <tr>
             <th>Nom</th>
             <th>Rôle</th>
-            <th>Dépôt assigné</th>
+            <th>Boutique assignée</th>
             <th>Date d'ajout</th>
           </tr>
         </thead>

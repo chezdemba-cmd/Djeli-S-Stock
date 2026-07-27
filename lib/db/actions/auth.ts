@@ -70,7 +70,7 @@ export async function getOrCreateUserOrg(userId: string, email?: string, passedO
     return { orgId: firstOrg.id, storeId };
   }
 
-  // 4. Auto-création complète (Organisation + Dépôt Principal + Membership owner)
+  // 4. Auto-création complète (Organisation + Boutique Principale + Membership owner)
   const name = email ? `Structure ${email.split('@')[0]}` : "Structure Principale";
   const { data: newOrg, error: orgErr } = await admin.from('organizations').insert({ name }).select().single();
   if (orgErr || !newOrg) {
@@ -79,7 +79,7 @@ export async function getOrCreateUserOrg(userId: string, email?: string, passedO
 
   const { data: newStore } = await admin.from('stores').insert({
     organization_id: newOrg.id,
-    name: 'Dépôt Principal',
+    name: 'Boutique Principale',
     active: true
   }).select().single();
 

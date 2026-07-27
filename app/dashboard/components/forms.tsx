@@ -731,8 +731,8 @@ export function DepotForm({
           <Store />
         </div>
         <div>
-          <h2>Nouveau Dépôt</h2>
-          <p>Ajouter un dépôt ou une boutique.</p>
+          <h2>Nouvelle Boutique</h2>
+          <p>Ajouter une nouvelle boutique ou succursale.</p>
         </div>
       </div>
       {errorMsg && (

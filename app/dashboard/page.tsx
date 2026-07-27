@@ -117,12 +117,12 @@ export default function Home() {
           <Store size={18} />
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Dépôt Actif</span>
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Boutique Active</span>
               {userRole !== 'seller' && (
                 <button 
                   type="button" 
                   onClick={() => setModal('depot')}
-                  title="Créer un nouveau dépôt"
+                  title="Créer une nouvelle boutique"
                   style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', cursor: 'pointer' }}
                 >
                   + Créer
@@ -183,7 +183,7 @@ export default function Home() {
         </header>
 
         {tab === "Tableau de bord" && <>
-          <section className="welcome"><div><span>VUE D’ENSEMBLE</span><h2>Bonjour, votre dépôt est sous contrôle.</h2><p>Voici la situation de vos marchandises aujourd’hui.</p></div></section>
+          <section className="welcome"><div><span>VUE D’ENSEMBLE</span><h2>Bonjour, votre boutique est sous contrôle.</h2><p>Voici la situation de vos marchandises aujourd’hui.</p></div></section>
           <section className="metrics">
             <Metric icon={Boxes} tone="green" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives`} />
             <Metric icon={ArrowUpRight} tone="gold" label="Marge potentielle" value={userRole !== 'seller' ? money.format(projectedMargin) : '***'} detail="Sur le stock disponible" />
@@ -211,9 +211,9 @@ export default function Home() {
           )}
           <MovementTable movements={movements} />
         </section>}
-        {tab === "Dépôts" && <section className="panel page-panel">
+        {tab === "Boutiques" && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="primary" onClick={() => setModal("depot")}>+ Nouveau Dépôt</button>
+            <button className="primary" onClick={() => setModal("depot")}>+ Nouvelle Boutique</button>
           </div>
           <DepotTable depots={depots} />
         </section>}

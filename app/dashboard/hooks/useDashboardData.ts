@@ -215,7 +215,7 @@ export function useDashboardData() {
             id: s.id, name: s.name, city: s.city || '', manager: 'Gérant', references: 0, stockValue: 0
           }));
         } else {
-          finalStores = [{ id: 'default-store', name: 'Dépôt Principal', city: 'Bamako', manager: 'Gérant', references: 0, stockValue: 0 }];
+          finalStores = [{ id: 'default-store', name: 'Boutique Principale', city: 'Bamako', manager: 'Gérant', references: 0, stockValue: 0 }];
         }
         setDepots(finalStores);
         localStorage.setItem('djelis_stores', JSON.stringify(finalStores));
