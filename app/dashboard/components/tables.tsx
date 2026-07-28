@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Product, Movement, Depot, Customer, Supplier } from "../types";
-import { Search } from "lucide-react";
+import { Search, ScanLine } from "lucide-react";
+import { BarcodeScanner } from "./BarcodeScanner";
 
 export function ProductTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState("");
+  const [scanning, setScanning] = useState(false);
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
   
   const filtered = products.filter(p => 
@@ -22,10 +24,19 @@ export function ProductTable({ products }: { products: Product[] }) {
             placeholder="Rechercher un produit, SKU ou catégorie..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: '100%', padding: '10px 10px 10px 35px', borderRadius: '8px', border: '1px solid #e7e8e3', outline: 'none', fontSize: '13px' }}
+            style={{ width: '100%', padding: '10px 40px 10px 35px', borderRadius: '8px', border: '1px solid #e7e8e3', outline: 'none', fontSize: '13px' }}
           />
+          <button 
+            type="button"
+            onClick={() => setScanning(true)}
+            title="Scanner un code-barres"
+            style={{ position: 'absolute', right: '8px', top: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#173f35', padding: '4px' }}
+          >
+            <ScanLine size={16} />
+          </button>
         </div>
       </div>
+      {scanning && <BarcodeScanner onScan={(code) => { setSearch(code); setScanning(false); }} onClose={() => setScanning(false)} />}
       <div className="table-wrap">
         <table>
           <thead>
