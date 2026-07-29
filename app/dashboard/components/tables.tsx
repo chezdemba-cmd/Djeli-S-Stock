@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Product, Movement, Depot, Customer, Supplier } from "../types";
-import { Search, ScanLine } from "lucide-react";
+import { Search, ScanLine, MessageCircle } from "lucide-react";
 import { BarcodeScanner } from "./BarcodeScanner";
 
 export function ProductTable({ products }: { products: Product[] }) {
@@ -208,13 +208,27 @@ export function CustomerTable({ customers, onPay }: { customers: Customer[]; onP
               </td>
               <td>
                 {c.balance > 0 ? (
-                  <button
-                    className="button-secondary"
-                    style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
-                    onClick={() => onPay(c)}
-                  >
-                    💰 Rembourser
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button
+                      className="button-secondary"
+                      style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
+                      onClick={() => onPay(c)}
+                    >
+                      💰 Rembourser
+                    </button>
+                    {c.phone && (
+                      <button
+                        title="Relancer par WhatsApp"
+                        style={{ padding: "0.3rem", borderRadius: "50%", background: "#25D366", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        onClick={() => {
+                          const text = `Bonjour ${c.name},%0A%0ASauf erreur de notre part, votre compte présente un solde restant à payer de *${money.format(c.balance)}*.%0AMerci de bien vouloir régulariser cette situation dès que possible.%0A%0ACordialement,`;
+                          window.open(`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                        }}
+                      >
+                        <MessageCircle size={16} />
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <span style={{ color: "#888", fontSize: "0.8rem" }}>-</span>
                 )}
@@ -260,17 +274,31 @@ export function SupplierTable({ suppliers, onPay }: { suppliers: Supplier[]; onP
                 </span>
               </td>
               <td>
-                {s.balance > 0 ? (
-                  <button
-                    className="button-secondary"
-                    style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
-                    onClick={() => onPay(s)}
-                  >
-                    💸 Payer
-                  </button>
-                ) : (
-                  <span style={{ color: "#888", fontSize: "0.8rem" }}>-</span>
-                )}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {s.balance > 0 ? (
+                    <button
+                      className="button-secondary"
+                      style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
+                      onClick={() => onPay(s)}
+                    >
+                      💸 Payer
+                    </button>
+                  ) : (
+                    <span style={{ color: "#888", fontSize: "0.8rem", width: '60px', display: 'inline-block', textAlign: 'center' }}>-</span>
+                  )}
+                  {s.phone && (
+                    <button
+                      title="Contacter par WhatsApp (Commande / Suivi)"
+                      style={{ padding: "0.3rem", borderRadius: "50%", background: "#25D366", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      onClick={() => {
+                        const text = `Bonjour ${s.name},%0A%0ACeci est un message de la boutique.%0A%0A`;
+                        window.open(`https://wa.me/${s.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                      }}
+                    >
+                      <MessageCircle size={16} />
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
