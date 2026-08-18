@@ -49,7 +49,8 @@ export default function Home() {
   const {
     handleSale, handleCreateProduct, handleAddStockMovementForm,
     handlePayCustomerReceivableForm, handlePaySupplierForm,
-    handleCreateClientWorkspaceForm, handleCreateEmployee, handleCreateExpense
+    handleCreateClientWorkspaceForm, handleCreateEmployee, handleCreateExpense,
+    handleCreateCustomer, handleCreateSupplier, handleCreateDepot
   } = useDashboardActions(data, isOnline, queueOfflineAction, setIsSubmitting, setErrorMsg, setModal, setLastReceipt);
 
   const filterByDate = (rawDate: string | undefined) => {
@@ -310,7 +311,7 @@ export default function Home() {
             </div>
             <button className="button-secondary" onClick={() => setModal("expense")} style={{ color: '#d32f2f', borderColor: '#d32f2f' }}>+ Nouvelle Dépense</button>
           </div>
-          <TreasuryTable transactions={treasuryTransactions} />
+          <TreasuryTable transactions={treasuryTransactions} money={money} />
         </section>}
         {tab === "SaaS Admin" && isSuperAdmin && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>

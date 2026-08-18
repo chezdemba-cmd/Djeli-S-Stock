@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { processSale } from "../../lib/db/business";
+import { processSale } from "../../lib/db/actions/sales";
 
 type OfflineAction = {
   type: string;

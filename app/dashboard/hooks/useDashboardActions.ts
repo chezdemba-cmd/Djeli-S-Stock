@@ -1,5 +1,10 @@
 import { FormEvent, Dispatch, SetStateAction } from "react";
-import { processSale, createCustomer, createStore, createPartnerWorkspace, createProduct, addStockMovement, payReceivable, createEmployee, createSupplier, paySupplier, createExpense } from "../../../lib/db/business";
+import { processSale, payReceivable } from "../../../lib/db/actions/sales";
+import { createCustomer } from "../../../lib/db/actions/customers";
+import { createStore, createPartnerWorkspace, createEmployee } from "../../../lib/db/actions/stores";
+import { createProduct, addStockMovement } from "../../../lib/db/actions/products";
+import { createSupplier, paySupplier } from "../../../lib/db/actions/suppliers";
+import { createExpense } from "../../../lib/db/actions/treasury";
 import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction } from "../types";
 import { useOffline } from "../../providers/OfflineProvider";
 

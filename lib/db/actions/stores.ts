@@ -148,12 +148,12 @@ export async function createPartnerWorkspace(data: {
 
     // 6. Update profile with full name
     try {
-      await admin.from('profiles').update({ full_name: data.owner_full_name }).eq('id', newAuthUser.user.id);
+      await admin.from('profiles').update({ full_name: data.owner_full_name } as any).eq('id', newAuthUser.user.id);
     } catch (err) {
       console.error("Erreur mise à jour profil", err);
     }
 
-    return { success: true, org };
+    return { success: true };
   } catch (e: any) {
     return { success: false, error: "Erreur serveur : " + (e?.message || String(e)) };
   }

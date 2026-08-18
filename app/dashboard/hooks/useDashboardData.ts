@@ -3,7 +3,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction } from "../types";
 import { useOffline } from "../../providers/OfflineProvider";
-import { createClientWorkspace } from "../../../lib/db/business";
+import { createClientWorkspace } from "../../../lib/db/actions/stores";
 
 export function useDashboardData() {
   const router = useRouter();
@@ -225,7 +225,7 @@ export function useDashboardData() {
         const { data: employeesData } = await employeesQuery;
         if (employeesData) setEmployees(employeesData);
 
-        const { data: membership } = await supabase.from('memberships').select('store_id, role').eq('user_id', session.user.id).eq('organization_id', currentActiveOrgId).limit(1).single();
+        const { data: membership } = await supabase.from('memberships').select('store_id, role').eq('user_id', session.user.id).eq('organization_id', currentActiveOrgId || '').limit(1).single();
         if (membership && (membership as { store_id?: string | null }).store_id) {
           const m = membership as { store_id: string, role: string };
           setStoreId(m.store_id);
