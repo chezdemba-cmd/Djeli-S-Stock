@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { getAdmin, getOrCreateUserOrg, createClient } from "./auth";
 
-export const CreateExpenseSchema = z.object({
+const CreateExpenseSchema = z.object({
   store_id: z.string().uuid(),
   amount: z.number().positive(),
   reason: z.string().min(1),

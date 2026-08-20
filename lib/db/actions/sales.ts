@@ -12,7 +12,7 @@ const SaleItemSchema = z.object({
 export type SaleItemInput = z.infer<typeof SaleItemSchema>;
 
 
-export const ProcessSaleSchema = z.object({
+const ProcessSaleSchema = z.object({
   store_id: z.string().uuid(),
   items: z.array(SaleItemSchema).min(1),
   total_amount: z.number().nonnegative(),
