@@ -1,8 +1,4 @@
 "use server";
-import { createServerClient } from "@supabase/ssr";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import type { Database } from "../../../types/database.types";
 import { z } from "zod";
 
 import { getAdmin, getOrCreateUserOrg, createClient } from "./auth";
@@ -36,8 +32,8 @@ export async function createStore(data: {
     let parsedData;
     try {
       parsedData = CreateStoreSchema.parse(data);
-    } catch (e: any) {
-      return { error: "Données invalides : " + e.message };
+    } catch (e) {
+      return { error: "Données invalides : " + (e instanceof Error ? e.message : String(e)) };
     }
 
     const admin = await getAdmin();
@@ -60,8 +56,8 @@ export async function createStore(data: {
     }
 
     return { data: result };
-  } catch (e: any) {
-    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }
 
@@ -89,8 +85,8 @@ export async function createClientWorkspace(data: { name: string }) {
     });
 
     return { success: true, org };
-  } catch (e: any) {
-    return { success: false, error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { success: false, error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }
 
@@ -148,14 +144,14 @@ export async function createPartnerWorkspace(data: {
 
     // 6. Update profile with full name
     try {
-      await admin.from('profiles').update({ full_name: data.owner_full_name } as any).eq('id', newAuthUser.user.id);
+      await admin.from('profiles').update({ full_name: data.owner_full_name }).eq('id', newAuthUser.user.id);
     } catch (err) {
       console.error("Erreur mise à jour profil", err);
     }
 
     return { success: true };
-  } catch (e: any) {
-    return { success: false, error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { success: false, error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }
 
@@ -175,8 +171,8 @@ export async function createEmployee(data: {
     let parsedData;
     try {
       parsedData = CreateEmployeeSchema.parse(data);
-    } catch (e: any) {
-      return { error: "Données invalides : " + e.message };
+    } catch (e) {
+      return { error: "Données invalides : " + (e instanceof Error ? e.message : String(e)) };
     }
 
     const admin = await getAdmin();
@@ -214,7 +210,7 @@ export async function createEmployee(data: {
     if (memErr) return { error: "Erreur assignation rôle : " + memErr.message };
 
     return { data: { success: true } };
-  } catch (e: any) {
-    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }

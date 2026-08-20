@@ -8,13 +8,14 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "jest",
-    "generate-icons": "node generate-icons.js"
+    "generate-icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
     "@serwist/next": "^9.5.12",
     "@serwist/sw": "^9.5.12",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^17.4.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.545.0",
     "next": "^16.2.11",

@@ -25,8 +25,8 @@ export async function createExpense(data: {
     let parsedData;
     try {
       parsedData = CreateExpenseSchema.parse(data);
-    } catch (e: any) {
-      return { error: "Données invalides : " + e.message };
+    } catch (e) {
+      return { error: "Données invalides : " + (e instanceof Error ? e.message : String(e)) };
     }
 
     const admin = await getAdmin();
@@ -41,7 +41,7 @@ export async function createExpense(data: {
     };
 
     const { data: result, error } = await admin
-      .from('expenses' as any)
+      .from('expenses')
       .insert(payload)
       .select()
       .single();
@@ -50,7 +50,7 @@ export async function createExpense(data: {
       return { error: error.message };
     }
     return { data: result };
-  } catch (e: any) {
-    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }

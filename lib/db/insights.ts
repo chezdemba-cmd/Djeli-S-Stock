@@ -46,7 +46,7 @@ export function getLocalDateString(isoDateString: string, timezone: string): str
     const month = parts.find(p => p.type === 'month')?.value;
     const day = parts.find(p => p.type === 'day')?.value;
     return `${year}-${month}-${day}`;
-  } catch (e) {
+  } catch {
     // Fallback if timezone is invalid
     return isoDateString.split('T')[0];
   }

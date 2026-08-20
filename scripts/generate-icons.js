@@ -2,8 +2,9 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-const inputPath = path.join(__dirname, 'public', 'logo.png');
-const publicDir = path.join(__dirname, 'public');
+const rootDir = path.join(__dirname, '..');
+const inputPath = path.join(rootDir, 'public', 'logo.png');
+const publicDir = path.join(rootDir, 'public');
 
 if (!fs.existsSync(inputPath)) {
   console.error("❌ ERREUR : Le fichier public/logo.png est introuvable.");

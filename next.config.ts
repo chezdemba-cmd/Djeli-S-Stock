@@ -10,9 +10,6 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {},
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default withSerwist(nextConfig);

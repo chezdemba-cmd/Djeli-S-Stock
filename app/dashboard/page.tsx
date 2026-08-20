@@ -4,10 +4,11 @@ import { useState } from "react";
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, Boxes,
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
-  WifiOff, Wifi, RefreshCw, Settings, UserPlus, Truck, Wallet, FileText
+  WifiOff, Wifi, RefreshCw, Settings, UserPlus, Truck, Wallet, FileText, LogOut
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { createClient } from "../../lib/supabase/client";
 import { Customer, Supplier } from "./types";
 import { useOffline } from "../providers/OfflineProvider";
 import { Metric } from "./components/metrics";
@@ -68,6 +69,17 @@ export default function Home() {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }
     return true;
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+    }
+    localStorage.clear();
+    router.push('/');
   };
 
   const periodSales = treasuryTransactions.filter(t => t.flow_direction === 'in' && filterByDate(t.rawDate)).reduce((acc, t) => acc + t.net_amount, 0);
@@ -168,6 +180,16 @@ export default function Home() {
           {depots.length > 1 && <ChevronRight size={16} style={{ transform: 'rotate(90deg)', pointerEvents: 'none' }} />}
         </div>
         <nav>{nav.map(({ label, icon: Icon }) => <button key={label} className={tab === label ? "active" : ""} onClick={() => { setTab(label); setMobileNav(false); }}><Icon size={19} />{label}</button>)}</nav>
+        <button
+          onClick={handleLogout}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)',
+            padding: '0.75rem 1.25rem', cursor: 'pointer', fontSize: '0.95rem', marginTop: 'auto'
+          }}
+        >
+          <LogOut size={19} /> Déconnexion
+        </button>
       </aside>
 
       <section className="content">

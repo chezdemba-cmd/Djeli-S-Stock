@@ -1,8 +1,4 @@
 "use server";
-import { createServerClient } from "@supabase/ssr";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import type { Database } from "../../../types/database.types";
 import { z } from "zod";
 
 import { getAdmin, getOrCreateUserOrg, createClient } from "./auth";
@@ -49,8 +45,8 @@ export async function createProduct(data: {
     let parsedData;
     try {
       parsedData = CreateProductSchema.parse(data);
-    } catch (e: any) {
-      return { error: "Données invalides : " + e.message };
+    } catch (e) {
+      return { error: "Données invalides : " + (e instanceof Error ? e.message : String(e)) };
     }
 
     const admin = await getAdmin();
@@ -89,8 +85,8 @@ export async function createProduct(data: {
     }
 
     return { data: product };
-  } catch (e: any) {
-    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }
 
@@ -112,8 +108,8 @@ export async function addStockMovement(data: {
     let parsedData;
     try {
       parsedData = AddStockMovementSchema.parse(data);
-    } catch (e: any) {
-      return { error: "Données invalides : " + e.message };
+    } catch (e) {
+      return { error: "Données invalides : " + (e instanceof Error ? e.message : String(e)) };
     }
 
     const admin = await getAdmin();
@@ -168,7 +164,7 @@ export async function addStockMovement(data: {
     }
 
     return { data: mvt };
-  } catch (e: any) {
-    return { error: "Erreur serveur : " + (e?.message || String(e)) };
+  } catch (e) {
+    return { error: "Erreur serveur : " + (e instanceof Error ? e.message : String(e)) };
   }
 }
