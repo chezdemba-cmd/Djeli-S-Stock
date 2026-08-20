@@ -3,7 +3,7 @@ import "./globals.css";
 import { OfflineProvider } from "./providers/OfflineProvider";
 
 export const metadata: Metadata = {
-  title: "DJELI'S STOCK",
+  title: "KOMI",
   description: "Gestion de stock simple pour grossistes et dépôts d'Afrique de l'Ouest",
   manifest: "/manifest.json",
   icons: {

@@ -103,7 +103,7 @@ export default function Home() {
     <main className={`app-container ${mobileNav ? "nav-open" : ""}`}>
       <aside className="sidebar">
         <div className="brand" style={{ padding: '15px 0', justifyContent: 'center' }}>
-          <h1 className="logo" style={{ fontSize: '1.2rem', margin: 0 }}>DJELI&apos;S <span style={{ color: 'var(--primary)' }}>STOCK</span></h1>
+          <h1 className="logo" style={{ fontSize: '1.2rem', margin: 0 }}>KO<span style={{ color: 'var(--primary)' }}>MI</span></h1>
         </div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
         <div className="depot" style={{ position: 'relative' }}>
@@ -269,7 +269,7 @@ export default function Home() {
                   className="button-secondary"
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
                   onClick={() => {
-                    const text = `⚠️ *ALERTE RUPTURE DE STOCK - DJELI'S STOCK* ⚠️\n\nLes produits suivants doivent être réapprovisionnés :\n\n${lowStock.map(p => `- ${p.name} (Reste: ${p.quantity})`).join('\n')}\n\nMerci de faire le nécessaire.`;
+                    const text = `⚠️ *ALERTE RUPTURE DE STOCK - KOMI* ⚠️\n\nLes produits suivants doivent être réapprovisionnés :\n\n${lowStock.map(p => `- ${p.name} (Reste: ${p.quantity})`).join('\n')}\n\nMerci de faire le nécessaire.`;
                     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                   }}
                 >
