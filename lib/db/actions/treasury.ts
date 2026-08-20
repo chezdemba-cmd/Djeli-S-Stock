@@ -1,14 +1,7 @@
 "use server";
 import { z } from "zod";
 import { getAdmin, getOrCreateUserOrg, createClient } from "./auth";
-
-const CreateExpenseSchema = z.object({
-  store_id: z.string().uuid(),
-  amount: z.number().positive(),
-  reason: z.string().min(1),
-  organization_id: z.string().uuid().optional(),
-  idempotency_key: z.string().min(1)
-});
+import { CreateExpenseSchema } from "../schemas";
 
 export async function createExpense(data: {
   store_id: string;

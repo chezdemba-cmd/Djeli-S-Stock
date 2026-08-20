@@ -1,5 +1,4 @@
-import { ProcessSaleSchema } from "../lib/db/actions/sales";
-import { CreateExpenseSchema } from "../lib/db/actions/treasury";
+import { ProcessSaleSchema, CreateExpenseSchema } from "../lib/db/schemas";
 
 describe('Security Tests: Server Actions Validation', () => {
   describe('ProcessSaleSchema Validation', () => {
