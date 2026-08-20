@@ -1,7 +1,7 @@
 import { ShoppingCart } from "lucide-react";
+import { Receipt } from "../types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ReceiptModal({ receipt, onClose, money }: { receipt: any; onClose: () => void; money: Intl.NumberFormat }) {
+export function ReceiptModal({ receipt, money }: { receipt: Receipt; money: Intl.NumberFormat }) {
   const text = `*DJELI'S STOCK - REÇU DE VENTE* 🧾\nDate : ${receipt.date}\n-------------------------\nProduit : ${receipt.quantity}x ${receipt.productName}\nTotal : ${money.format(receipt.total)}\nPayé : ${money.format(receipt.paid)}\nReste à Payer : ${money.format(receipt.due)}\n-------------------------\nMerci pour votre confiance !`;
   const phoneParam = receipt.customerPhone ? receipt.customerPhone.replace(/[^0-9]/g, "") : "";
   const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(text)}`;
@@ -44,7 +44,7 @@ export function ReceiptModal({ receipt, onClose, money }: { receipt: any; onClos
 
       <div className="printable-receipt">
         <div className="receipt-header">
-          <h2>DJELI'S STOCK</h2>
+          <h2>DJELI&apos;S STOCK</h2>
           <p>Reçu de Vente</p>
           <p>Date : {receipt.date}</p>
         </div>

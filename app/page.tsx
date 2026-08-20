@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "../lib/supabase/client";
-import { Warehouse, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -67,7 +68,7 @@ export default function LoginPage() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f8f5", padding: "20px" }}>
       <div style={{ background: "white", padding: "40px", borderRadius: "18px", boxShadow: "0 12px 24px rgba(23,63,53,.08)", width: "100%", maxWidth: "400px" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-          <img src="/logo.png" alt="Djeli's Stock Logo" style={{ maxWidth: "150px", height: "auto" }} />
+          <Image src="/logo.png" alt="Djeli's Stock Logo" width={1024} height={682} style={{ maxWidth: "150px", width: "100%", height: "auto" }} priority />
         </div>
         
         <h1 style={{ fontFamily: "Georgia, serif", fontSize: "24px", textAlign: "center", margin: "0 0 10px 0", color: "#173f35" }}>

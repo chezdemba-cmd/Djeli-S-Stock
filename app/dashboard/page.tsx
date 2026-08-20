@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 import {
-  AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, Boxes,
+  AlertTriangle, ArrowDownLeft, BarChart3, Boxes,
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
-  WifiOff, Wifi, RefreshCw, Settings, UserPlus, Truck, Wallet, FileText, LogOut
+  WifiOff, Wifi, RefreshCw, Settings, UserPlus, Truck, Wallet, LogOut
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { createClient } from "../../lib/supabase/client";
-import { Customer, Supplier } from "./types";
+import { Customer, Supplier, ModalType, Receipt } from "./types";
 import { useOffline } from "../providers/OfflineProvider";
 import { Metric } from "./components/metrics";
-import { Charts } from "./components/charts";
 import { ProductTable, MovementTable, DepotTable, CustomerTable, SupplierTable, EmployeeTable, TreasuryTable } from "./components/tables";
 import { SaleForm, ProductForm, StockInflowForm, PaymentForm, CustomerForm, SupplierForm, PaySupplierForm, DepotForm, ClientForm, EmployeeForm, ExpenseForm } from "./components/forms";
 import { ReceiptModal } from "./components/ReceiptModal";
@@ -24,13 +23,13 @@ const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF
 
 export default function Home() {
   const router = useRouter();
-  
+
   const [tab, setTab] = useState("Tableau de bord");
   const [dateFilter, setDateFilter] = useState("all");
-  const [modal, setModal] = useState<"product" | "movement" | "customer" | "supplier" | "depot" | "sale" | "receipt" | "new_client" | "inflow" | "payment" | "pay_supplier" | "new_employee" | "expense" | null>(null);
+  const [modal, setModal] = useState<ModalType>(null);
   const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState<Customer | null>(null);
   const [selectedSupplierForPayment, setSelectedSupplierForPayment] = useState<Supplier | null>(null);
-  const [lastReceipt, setLastReceipt] = useState<any>(null);
+  const [lastReceipt, setLastReceipt] = useState<Receipt | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -42,8 +41,8 @@ export default function Home() {
     products, movements, customers, suppliers, depots, employees,
     sessionLoading, storeId, setStoreId, userRole, isSuperAdmin,
     accessibleOrgs, activeOrgId, setActiveOrgId,
-    lowStock, stockValue, projectedMargin, totalDebt, filtered,
-    treasuryTransactions, treasuryIn, treasuryOut, netBalance
+    lowStock, stockValue, totalDebt, filtered,
+    treasuryTransactions, netBalance
   } = data;
 
   // Load Actions Hook
@@ -104,7 +103,7 @@ export default function Home() {
     <main className={`app-container ${mobileNav ? "nav-open" : ""}`}>
       <aside className="sidebar">
         <div className="brand" style={{ padding: '15px 0', justifyContent: 'center' }}>
-          <h1 className="logo" style={{ fontSize: '1.2rem', margin: 0 }}>DJELI'S <span style={{ color: 'var(--primary)' }}>STOCK</span></h1>
+          <h1 className="logo" style={{ fontSize: '1.2rem', margin: 0 }}>DJELI&apos;S <span style={{ color: 'var(--primary)' }}>STOCK</span></h1>
         </div>
         <button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Fermer"><X size={22} /></button>
         <div className="depot" style={{ position: 'relative' }}>
@@ -233,13 +232,13 @@ export default function Home() {
               <p>Voici la situation de vos marchandises.</p>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px 15px', borderRadius: '10px' }}>
-              <label style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Période d'analyse :</label>
+              <label style={{ fontSize: '11px', display: 'block', marginBottom: '4px' }}>Période d&apos;analyse :</label>
               <select 
                 value={dateFilter} 
                 onChange={e => setDateFilter(e.target.value)}
                 style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 10px', borderRadius: '6px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
               >
-                <option value="today" style={{ color: 'black' }}>Aujourd'hui</option>
+                <option value="today" style={{ color: 'black' }}>Aujourd&apos;hui</option>
                 <option value="week" style={{ color: 'black' }}>Cette Semaine</option>
                 <option value="month" style={{ color: 'black' }}>Ce Mois-ci</option>
                 <option value="all" style={{ color: 'black' }}>Global (Tout)</option>
@@ -374,7 +373,7 @@ export default function Home() {
           {modal === "supplier" && <SupplierForm onClose={() => setModal(null)} onSubmit={handleCreateSupplier} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "depot" && <DepotForm onClose={() => setModal(null)} onSubmit={handleCreateDepot} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "sale" && <SaleForm products={products} customers={customers} isSubmitting={isSubmitting} errorMsg={errorMsg} onSubmit={handleSale} />}
-          {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} onClose={() => setModal(null)} money={money} />}
+          {modal === "receipt" && lastReceipt && <ReceiptModal receipt={lastReceipt} money={money} />}
           {modal === "new_client" && <ClientForm onClose={() => setModal(null)} onSubmit={handleCreateClientWorkspaceForm} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "new_employee" && <EmployeeForm depots={depots} onClose={() => setModal(null)} onSubmit={handleCreateEmployee} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
           {modal === "expense" && <ExpenseForm onClose={() => setModal(null)} onSubmit={handleCreateExpense} isSubmitting={isSubmitting} errorMsg={errorMsg} />}

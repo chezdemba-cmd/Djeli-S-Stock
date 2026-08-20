@@ -21,7 +21,7 @@ export function Charts({ money }: { money: Intl.NumberFormat }) {
   return (
     <section className="charts-grid">
       <div className="chart-card">
-        <h3>Évolution du Chiffre d'Affaires (7 derniers jours)</h3>
+        <h3>Évolution du Chiffre d&apos;Affaires (7 derniers jours)</h3>
         <div style={{ width: '100%', height: 250 }}>
           <ResponsiveContainer>
             <AreaChart data={salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

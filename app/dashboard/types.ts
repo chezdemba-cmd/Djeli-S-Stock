@@ -15,3 +15,29 @@ export interface TreasuryTransaction {
   rawDate?: string;
   author: string;
 }
+
+export type Employee = {
+  organization_id: string;
+  user_id: string;
+  full_name: string;
+  role: string;
+  store_id: string | null;
+  store_name: string | null;
+  membership_id: string;
+  created_at: string;
+};
+
+export type Receipt = {
+  date: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  paid: number;
+  due: number;
+  customerPhone?: string | null;
+};
+
+export type ModalType =
+  | "product" | "movement" | "customer" | "supplier" | "depot" | "sale"
+  | "receipt" | "new_client" | "inflow" | "payment" | "pay_supplier"
+  | "new_employee" | "expense" | null;

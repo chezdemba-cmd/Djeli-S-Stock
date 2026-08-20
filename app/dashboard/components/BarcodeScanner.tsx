@@ -45,7 +45,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           onScan(decodedText);
           onClose();
         },
-        (error) => {
+        () => {
           // Failure callback - usually ignore to avoid spamming console
         }
       );

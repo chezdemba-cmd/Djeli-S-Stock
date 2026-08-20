@@ -2,6 +2,7 @@
 import { z } from "zod";
 
 import { getAdmin, getOrCreateUserOrg, createClient } from "./auth";
+import { allocatePaymentToDebts } from "../payables";
 
 const CreateSupplierSchema = z.object({
   name: z.string().min(1),
@@ -79,19 +80,10 @@ export async function paySupplier(data: {
       .in('status', ['open', 'late'])
       .order('created_at', { ascending: true });
 
-    let remainingAmount = data.amount;
-    
     if (openPayables) {
-      for (const p of openPayables) {
-        if (remainingAmount <= 0) break;
-        const due = p.amount - p.amount_paid;
-        if (due > 0) {
-          const applied = Math.min(due, remainingAmount);
-          remainingAmount -= applied;
-          const newPaid = p.amount_paid + applied;
-          const newStatus = newPaid >= p.amount ? 'paid' : p.status;
-          await admin.from('payables').update({ amount_paid: newPaid, status: newStatus }).eq('id', p.id);
-        }
+      const updates = allocatePaymentToDebts(openPayables, data.amount);
+      for (const u of updates) {
+        await admin.from('payables').update({ amount_paid: u.amount_paid, status: u.status }).eq('id', u.id);
       }
     }
 

@@ -5,8 +5,14 @@ import { createStore, createPartnerWorkspace, createEmployee } from "../../../li
 import { createProduct, addStockMovement } from "../../../lib/db/actions/products";
 import { createSupplier, paySupplier } from "../../../lib/db/actions/suppliers";
 import { createExpense } from "../../../lib/db/actions/treasury";
-import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction } from "../types";
-import { useOffline } from "../../providers/OfflineProvider";
+import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction, ModalType, Receipt } from "../types";
+import type { OfflineAction } from "../../providers/OfflineProvider";
+import type { Database } from "../../../types/database.types";
+
+// Les server actions renvoient { data } en cas de succès ou { error } en cas d'échec ;
+// on force ici un vrai type discriminé (au lieu du type inféré où data/error sont
+// optionnels des deux côtés) pour que `'error' in response` se resserre correctement.
+type ActionResponse<T> = { data: T } | { error: string };
 
 interface DashboardData {
   products: Product[];
@@ -39,13 +45,13 @@ const speak = (text: string) => {
 export function useDashboardActions(
   data: DashboardData,
   isOnline: boolean,
-  queueOfflineAction: any,
+  queueOfflineAction: (action: OfflineAction) => void,
   setIsSubmitting: Dispatch<SetStateAction<boolean>>,
   setErrorMsg: Dispatch<SetStateAction<string | null>>,
-  setModal: Dispatch<SetStateAction<any>>,
-  setLastReceipt: Dispatch<SetStateAction<any>>
+  setModal: Dispatch<SetStateAction<ModalType>>,
+  setLastReceipt: Dispatch<SetStateAction<Receipt | null>>
 ) {
-  const { products, setProducts, treasuryTransactions, setTreasuryTransactions, movements, setMovements, customers, setCustomers, suppliers, setSuppliers, depots, setDepots, storeId, setStoreId, activeOrgId, accessibleOrgs } = data;
+  const { products, setProducts, setTreasuryTransactions, setMovements, customers, setCustomers, suppliers, setSuppliers, depots, setDepots, storeId, setStoreId, activeOrgId, accessibleOrgs } = data;
 
   async function handleSale(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,8 +81,7 @@ export function useDashboardActions(
       return;
     }
 
-    // eslint-disable-next-line react-hooks/purity
-    const idempotency_key = `sale_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const idempotency_key = `sale_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const payload = {
       store_id: storeId,
       items: [{ product_id: productId, quantity, unit_price: product.salePrice }],
@@ -142,9 +147,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await createCustomer(payload) as any;
-      if (response && response.error) {
+      const response = await createCustomer(payload) as ActionResponse<Database['public']['Tables']['customers']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         const newCustomer = response.data;
@@ -185,9 +189,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await createStore(payload) as any;
-      if (response && response.error) {
+      const response = await createStore(payload) as ActionResponse<Database['public']['Tables']['stores']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         const newStore = response.data;
@@ -235,9 +238,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await createProduct(payload) as any;
-      if (response && response.error) {
+      const response = await createProduct(payload) as ActionResponse<Database['public']['Tables']['products']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         const p = response.data;
@@ -245,7 +247,7 @@ export function useDashboardActions(
           id: p.id,
           name: p.name,
           sku: p.sku,
-          category: p.category,
+          category: p.category || '',
           unit: p.unit,
           quantity: payload.initial_quantity,
           minStock: p.min_stock,
@@ -287,9 +289,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await addStockMovement(payload) as any;
-      if (response && response.error) {
+      const response = await addStockMovement(payload) as ActionResponse<Database['public']['Tables']['inventory_movements']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         setProducts(current => current.map(p => p.id === productId ? { ...p, quantity: p.quantity + quantity } : p));
@@ -334,9 +335,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await payReceivable(payload) as any;
-      if (response && response.error) {
+      const response = await payReceivable(payload) as ActionResponse<unknown>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         setCustomers(current => current.map(c => {
@@ -434,9 +434,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await createSupplier(payload) as any;
-      if (response && response.error) {
+      const response = await createSupplier(payload) as ActionResponse<Database['public']['Tables']['suppliers']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         const p = response.data;
@@ -476,9 +475,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await paySupplier(payload) as any;
-      if (response && response.error) {
+      const response = await paySupplier(payload) as ActionResponse<{ success: true }>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         setSuppliers(current => current.map(s => {
@@ -516,8 +514,8 @@ export function useDashboardActions(
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      const response = await createExpense(payload) as any;
-      if (response && response.error) {
+      const response = await createExpense(payload) as ActionResponse<Database['public']['Tables']['expenses']['Row']>;
+      if ('error' in response) {
         setErrorMsg(response.error);
       } else {
         const p = response.data;

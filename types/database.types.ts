@@ -99,6 +99,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: string[];
       };
+      bootstrap_user_organization: {
+        Args: { p_name?: string };
+        Returns: Json;
+      };
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
@@ -108,6 +112,9 @@ export interface Database {
       }
       org_employees: {
         Row: { organization_id: string; user_id: string; full_name: string; role: string; store_id: string | null; store_name: string | null; membership_id: string; created_at: string; }; Relationships: { foreignKeyName: string; columns: string[]; isOneToOne?: boolean; referencedRelation: string; referencedColumns: string[]; }[]
+      }
+      treasury_ledger: {
+        Row: { id: string; organization_id: string; source_table: 'payment' | 'expense'; net_amount: number; flow_direction: 'in' | 'out'; description: string; payment_method: string; created_at: string; created_by: string; profiles?: { full_name: string } }; Relationships: { foreignKeyName: string; columns: string[]; isOneToOne?: boolean; referencedRelation: string; referencedColumns: string[]; }[]
       }
     }
   }

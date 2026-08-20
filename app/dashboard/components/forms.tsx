@@ -1,6 +1,5 @@
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent } from "react";
 import { Product, Customer, Supplier, Depot } from "../types";
-import { Html5QrcodeScanner } from "html5-qrcode";
 import { useOffline } from "../../providers/OfflineProvider";
 import { BarcodeScanner } from "./BarcodeScanner";
 import {
@@ -47,16 +46,17 @@ export function SaleForm({
   };
 
   // Handle physical scanner (typing fast)
-  useEffect(() => {
-    if (barcodeInput.length > 5) {
-      const p = products.find(prod => prod.sku === barcodeInput);
+  const handleBarcodeInputChange = (value: string) => {
+    setBarcodeInput(value);
+    if (value.length > 5) {
+      const p = products.find(prod => prod.sku === value);
       if (p) {
         setSelectedProduct(p.id);
         setPaid(p.salePrice * qty);
         setBarcodeInput(""); // clear
       }
     }
-  }, [barcodeInput, products, qty]);
+  };
 
 
   const money = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 });
@@ -108,8 +108,8 @@ export function SaleForm({
         <input 
           type="text" 
           placeholder="Code-barres (douchette)..." 
-          value={barcodeInput} 
-          onChange={(e) => setBarcodeInput(e.target.value)} 
+          value={barcodeInput}
+          onChange={(e) => handleBarcodeInputChange(e.target.value)}
           autoFocus
           style={{ flex: 1, padding: "8px" }}
         />
@@ -279,7 +279,7 @@ export function ProductForm({
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }} className="wide">
           <label>
-            Prix d'Achat (FCFA) <input required type="number" min="0" name="purchase_price" defaultValue="15000" />
+            Prix d&apos;Achat (FCFA) <input required type="number" min="0" name="purchase_price" defaultValue="15000" />
           </label>
           <label>
             Prix de Vente (FCFA) <input required type="number" min="0" name="sale_price" defaultValue="18000" />
@@ -800,7 +800,7 @@ export function ClientForm({
         </div>
         <div>
           <h2>Nouveau Partenaire (Client SaaS)</h2>
-          <p>Créer un environnement complet et son compte d'accès gérant.</p>
+          <p>Créer un environnement complet et son compte d&apos;accès gérant.</p>
         </div>
       </div>
       {errorMsg && (

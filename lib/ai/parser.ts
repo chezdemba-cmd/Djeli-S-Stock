@@ -73,7 +73,7 @@ export const LLMResponseSchema = z.object({
 export type LLMResponse = z.infer<typeof LLMResponseSchema>;
 
 // --- Moteur de Rapprochement (Mock) ---
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- context reserved for the reconciliation logic below, not yet implemented
 export function evaluateIntent(llmResponse: LLMResponse, context: { products: any[], customers: any[] }) {
   if (llmResponse.confidence < 0.7 || llmResponse.data.intent === "unknown") {
     return { status: "REJECTED", message: llmResponse.data.intent === "unknown" ? llmResponse.data.reason : "Je n'ai pas bien compris. Pouvez-vous reformuler ?" };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Product, Movement, Depot, Customer, Supplier } from "../types";
+import { Product, Movement, Depot, Customer, Supplier, Employee, TreasuryTransaction } from "../types";
 import { Search, ScanLine, MessageCircle } from "lucide-react";
 import { BarcodeScanner } from "./BarcodeScanner";
 
@@ -308,8 +308,7 @@ export function SupplierTable({ suppliers, onPay }: { suppliers: Supplier[]; onP
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function EmployeeTable({ employees }: { employees: any[] }) {
+export function EmployeeTable({ employees }: { employees: Employee[] }) {
   if (employees.length === 0)
     return <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Aucun employé enregistré.</div>;
   return (
@@ -320,7 +319,7 @@ export function EmployeeTable({ employees }: { employees: any[] }) {
             <th>Nom</th>
             <th>Rôle</th>
             <th>Boutique assignée</th>
-            <th>Date d'ajout</th>
+            <th>Date d&apos;ajout</th>
           </tr>
         </thead>
         <tbody>
@@ -346,7 +345,7 @@ export function EmployeeTable({ employees }: { employees: any[] }) {
   );
 }
 
-export function TreasuryTable({ transactions, money }: { transactions: any[]; money: Intl.NumberFormat }) {
+export function TreasuryTable({ transactions, money }: { transactions: TreasuryTransaction[]; money: Intl.NumberFormat }) {
   if (transactions.length === 0) return <p className="empty-state">Aucune transaction enregistr�e.</p>;
   return (
     <div className="table-container">

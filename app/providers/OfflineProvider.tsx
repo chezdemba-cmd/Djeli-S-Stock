@@ -3,10 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { processSale } from "../../lib/db/actions/sales";
 
-type OfflineAction = {
-  type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any;
+export type OfflineAction = {
+  type: "SALE";
+  payload: Parameters<typeof processSale>[0];
 };
 
 interface OfflineContextType {
@@ -20,8 +19,15 @@ interface OfflineContextType {
 const OfflineContext = createContext<OfflineContextType | undefined>(undefined);
 
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
-  const [isOnline, setIsOnline] = useState(true);
-  const [offlineQueue, setOfflineQueue] = useState<OfflineAction[]>([]);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [offlineQueue, setOfflineQueue] = useState<OfflineAction[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("djelis_offline_queue") || "[]") as OfflineAction[];
+    } catch {
+      return [];
+    }
+  });
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState("Jamais");
 
@@ -44,10 +50,10 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
         remainingQueue = remainingQueue.filter(item => item.payload.idempotency_key !== action.payload.idempotency_key);
         localStorage.setItem("djelis_offline_queue", JSON.stringify(remainingQueue));
         setOfflineQueue(remainingQueue);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (e: any) {
+      } catch (e) {
         console.error("Échec de synchronisation", e);
-        if (e.message && (e.message.includes('mock-store-id') || e.message.includes('uuid') || e.message.includes('Stock insuffisant') || e.message.includes('obligatoire'))) {
+        const message = e instanceof Error ? e.message : String(e);
+        if (message.includes('mock-store-id') || message.includes('uuid') || message.includes('Stock insuffisant') || message.includes('obligatoire')) {
            remainingQueue = remainingQueue.filter(item => item.payload.idempotency_key !== action.payload.idempotency_key);
            localStorage.setItem("djelis_offline_queue", JSON.stringify(remainingQueue));
            setOfflineQueue(remainingQueue);
@@ -62,11 +68,12 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const online = navigator.onLine;
-    setIsOnline(online);
-    const queue = JSON.parse(localStorage.getItem("djelis_offline_queue") || "[]");
-    setOfflineQueue(queue);
+    const queue = JSON.parse(localStorage.getItem("djelis_offline_queue") || "[]") as OfflineAction[];
 
     if (online && queue.length > 0) {
+      // syncOfflineQueue is async: its setState calls run after the network
+      // round-trip, not synchronously within this effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       syncOfflineQueue();
     }
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { createClient } from "../../../lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction } from "../types";
+import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction, Employee } from "../types";
+import type { Database } from "../../../types/database.types";
 import { useOffline } from "../../providers/OfflineProvider";
 import { createClientWorkspace } from "../../../lib/db/actions/stores";
 
@@ -15,7 +16,7 @@ export function useDashboardData() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [treasuryTransactions, setTreasuryTransactions] = useState<TreasuryTransaction[]>([]);
   
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -59,8 +60,7 @@ export function useDashboardData() {
 
         // Fallback 1: Requête directe sur la table organizations
         if (!currentActiveOrgId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: directOrgs } = await (supabase as any).from('organizations').select('id, name').limit(10);
+          const { data: directOrgs } = await supabase.from('organizations').select('id, name').limit(10);
           if (directOrgs && directOrgs.length > 0) {
             currentActiveOrgId = directOrgs[0].id;
             setAccessibleOrgs(directOrgs);
@@ -69,11 +69,11 @@ export function useDashboardData() {
 
         // Fallback 2: Auto-création via RPC bootstrap
         if (!currentActiveOrgId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: rpcRes } = await (supabase.rpc as any)('bootstrap_user_organization', { p_name: "Structure Principale" });
-          if (rpcRes && rpcRes.success && rpcRes.org_id) {
-            currentActiveOrgId = rpcRes.org_id;
-            setAccessibleOrgs([{ id: rpcRes.org_id, name: "Structure Principale" }]);
+          const { data: rpcRes } = await supabase.rpc('bootstrap_user_organization', { p_name: "Structure Principale" });
+          const bootstrapResult = rpcRes as { success: boolean; org_id?: string } | null;
+          if (bootstrapResult && bootstrapResult.success && bootstrapResult.org_id) {
+            currentActiveOrgId = bootstrapResult.org_id;
+            setAccessibleOrgs([{ id: bootstrapResult.org_id, name: "Structure Principale" }]);
           } else {
             const autoWs = await createClientWorkspace({ name: "Structure Principale" });
             if (autoWs && autoWs.org) {
@@ -105,8 +105,7 @@ export function useDashboardData() {
         if (currentActiveOrgId) {
           const { data: stockData } = await supabase.from('current_stock').select('*').eq('organization_id', currentActiveOrgId);
           if (stockData) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            stockData.forEach((s: any) => {
+            stockData.forEach((s) => {
               stockMap[s.product_id] = (stockMap[s.product_id] || 0) + Number(s.quantity);
             });
           }
@@ -175,11 +174,12 @@ export function useDashboardData() {
 
         // Charger l'historique réel des mouvements
         if (currentActiveOrgId) {
-          const { data: movsData } = await supabase.from('inventory_movements').select('id, movement_type, quantity, created_at, products(name)').eq('organization_id', currentActiveOrgId).order('created_at', { ascending: false }).limit(50);
+          const { data: movsRaw } = await supabase.from('inventory_movements').select('id, movement_type, quantity, created_at, products(name)').eq('organization_id', currentActiveOrgId).order('created_at', { ascending: false }).limit(50);
+          const movsData = movsRaw as unknown as (Database['public']['Tables']['inventory_movements']['Row'])[] | null;
           if (movsData) {
             const mappedMovs: Movement[] = movsData.map(m => ({
               id: m.id,
-              product: m.products ? (m.products as any).name || 'Produit' : 'Produit',
+              product: m.products ? m.products.name || 'Produit' : 'Produit',
               type: m.movement_type === 'sale' ? 'Vente' : (m.movement_type === 'purchase' ? 'Entrée' : 'Sortie'),
               quantity: Math.abs(Number(m.quantity)),
               date: new Date(m.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
@@ -193,9 +193,10 @@ export function useDashboardData() {
         
         // Charger la trésorerie
         if (currentActiveOrgId) {
-          const { data: treasuryData } = await supabase.from('treasury_ledger' as any).select('id, source_table, net_amount, flow_direction, description, payment_method, created_at, profiles(full_name)').eq('organization_id', currentActiveOrgId).order('created_at', { ascending: false }).limit(100);
+          const { data: treasuryRaw } = await supabase.from('treasury_ledger').select('id, source_table, net_amount, flow_direction, description, payment_method, created_at, profiles(full_name)').eq('organization_id', currentActiveOrgId).order('created_at', { ascending: false }).limit(100);
+          const treasuryData = treasuryRaw as unknown as (Database['public']['Views']['treasury_ledger']['Row'])[] | null;
           if (treasuryData) {
-            const mappedTreasury: TreasuryTransaction[] = treasuryData.map((t: any) => ({
+            const mappedTreasury: TreasuryTransaction[] = treasuryData.map((t) => ({
               id: t.id,
               source_table: t.source_table,
               net_amount: Number(t.net_amount),
