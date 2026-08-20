@@ -5,6 +5,39 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "../lib/supabase/client";
 import { Loader2 } from "lucide-react";
+import type { AuthError } from "@supabase/supabase-js";
+
+function translateAuthError(error: AuthError): string {
+  switch (error.code) {
+    case "invalid_credentials":
+      return "E-mail ou mot de passe incorrect.";
+    case "email_not_confirmed":
+      return "Adresse e-mail non confirmée. Vérifiez votre boîte mail.";
+    case "user_already_exists":
+    case "email_exists":
+      return "Un compte existe déjà avec cette adresse e-mail.";
+    case "weak_password":
+      return "Mot de passe trop faible (6 caractères minimum).";
+    case "email_address_invalid":
+      return "Adresse e-mail invalide.";
+    case "same_password":
+      return "Le nouveau mot de passe doit être différent de l'ancien.";
+    case "signup_disabled":
+      return "Les inscriptions sont désactivées pour le moment.";
+    case "user_banned":
+      return "Ce compte a été suspendu.";
+    case "over_email_send_rate_limit":
+    case "over_request_rate_limit":
+    case "over_sms_send_rate_limit": {
+      const match = error.message.match(/(\d+)\s*seconds?/i);
+      return match
+        ? `Pour des raisons de sécurité, veuillez réessayer dans ${match[1]} secondes.`
+        : "Trop de tentatives. Veuillez réessayer dans quelques instants.";
+    }
+    default:
+      return error.message;
+  }
+}
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -30,7 +63,7 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError(error.message);
+        setError(translateAuthError(error));
         setLoading(false);
       } else {
         router.push("/dashboard");
@@ -47,7 +80,7 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError(error.message);
+        setError(translateAuthError(error));
         setLoading(false);
       } else if (data.session) {
         // Automatically logged in
@@ -75,7 +108,7 @@ export default function LoginPage() {
           {isLogin ? "Connexion" : "Créer un compte"}
         </h1>
         <p style={{ textAlign: "center", color: "#6c7773", fontSize: "14px", margin: "0 0 30px 0" }}>
-          {isLogin ? "Accédez à votre espace DJELI&apos;S Stock" : "Démarrez avec votre propre espace boutique"}
+          {isLogin ? "Accédez à votre espace DJELI'S Stock" : "Démarrez avec votre propre espace boutique"}
         </p>
 
         {error && (
