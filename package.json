@@ -11,10 +11,13 @@
     "generate-icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
+    "@ai-sdk/google": "^0.0.52",
+    "@ai-sdk/react": "^4.0.76",
     "@serwist/next": "^9.5.12",
     "@serwist/sw": "^9.5.12",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "ai": "^3.4.15",
     "dotenv": "^17.4.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.545.0",

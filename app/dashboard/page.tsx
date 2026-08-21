@@ -48,6 +48,7 @@ import { Metric } from "./components/metrics";
 import { ProductTable, MovementTable, DepotTable, CustomerTable, SupplierTable, EmployeeTable, TreasuryTable } from "./components/tables";
 import { SaleForm, ProductForm, StockInflowForm, PaymentForm, CustomerForm, SupplierForm, PaySupplierForm, DepotForm, ClientForm, EmployeeForm, ExpenseForm } from "./components/forms";
 import { ReceiptModal } from "./components/ReceiptModal";
+import { ChatAssistant } from "./components/ChatAssistant";
 
 import { useDashboardData } from "./hooks/useDashboardData";
 import { useDashboardActions } from "./hooks/useDashboardActions";
@@ -115,6 +116,16 @@ export default function Home() {
 
   const periodSales = treasuryTransactions.filter(t => t.flow_direction === 'in' && filterByDate(t.rawDate)).reduce((acc, t) => acc + t.net_amount, 0);
   const periodExpenses = treasuryTransactions.filter(t => t.flow_direction === 'out' && filterByDate(t.rawDate)).reduce((acc, t) => acc + t.net_amount, 0);
+
+  const aiContext = {
+    totalProducts: products.length,
+    lowStockCount: lowStock.length,
+    totalTreasury: netBalance,
+    totalStockValue: stockValue,
+    totalDebt: totalDebt,
+    topProducts: products.slice(0, 5).map(p => ({ name: p.name, stock: p.quantity, price: p.salePrice })),
+    recentMovements: movements.slice(0, 5).map(m => ({ product: m.product, type: m.type, quantity: m.quantity }))
+  };
 
   const nav = [
     { label: "Tableau de bord", icon: BarChart3 },
@@ -450,6 +461,8 @@ export default function Home() {
           {modal === "expense" && <ExpenseForm onClose={() => setModal(null)} onSubmit={handleCreateExpense} isSubmitting={isSubmitting} errorMsg={errorMsg} />}
         </div>
       </div>}
+
+      <ChatAssistant context={aiContext} />
     </main>
   );
 }
