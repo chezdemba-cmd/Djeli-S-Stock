@@ -1,6 +1,6 @@
 {
-  "name": "KOMI",
-  "short_name": "KOMI",
+  "name": "Comy Stock",
+  "short_name": "Comy",
   "description": "Assistant de gestion de stock intelligent pour commerçants Africains",
   "start_url": "/",
   "display": "standalone",

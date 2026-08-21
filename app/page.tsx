@@ -99,17 +99,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f8f5", padding: "20px" }}>
-      <div style={{ background: "white", padding: "40px", borderRadius: "18px", boxShadow: "0 12px 24px rgba(23,63,53,.08)", width: "100%", maxWidth: "400px" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-          <Image src="/logo.png" alt="KOMI Logo" width={1024} height={682} style={{ maxWidth: "150px", width: "100%", height: "auto" }} priority />
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#050505", padding: "20px" }}>
+      <div style={{ background: "#111111", padding: "40px", borderRadius: "18px", boxShadow: "0 12px 24px rgba(0,0,0,0.5)", width: "100%", maxWidth: "400px", border: "1px solid #222" }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "30px" }}>
+          <Image src="/logo.png" alt="Comy Stock Logo" width={500} height={300} style={{ maxWidth: "220px", width: "100%", height: "auto" }} priority />
         </div>
         
-        <h1 style={{ fontFamily: "Georgia, serif", fontSize: "24px", textAlign: "center", margin: "0 0 10px 0", color: "#173f35" }}>
+        <h1 style={{ fontFamily: "Georgia, serif", fontSize: "24px", textAlign: "center", margin: "0 0 10px 0", color: "#f0f0f0" }}>
           {isLogin ? "Connexion" : "Créer un compte"}
         </h1>
-        <p style={{ textAlign: "center", color: "#6c7773", fontSize: "14px", margin: "0 0 30px 0" }}>
-          {isLogin ? "Accédez à votre espace KOMI" : "Démarrez avec votre propre espace boutique"}
+        <p style={{ textAlign: "center", color: "#a0a0a0", fontSize: "14px", margin: "0 0 30px 0" }}>
+          {isLogin ? "Accédez à votre espace Comy Stock" : "Démarrez avec votre propre espace boutique"}
         </p>
 
         {error && (
@@ -127,44 +127,44 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {!isLogin && (
             <div>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#17221f" }}>Nom complet ou Nom de la boutique</label>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#d0d0d0" }}>Nom complet ou Nom de la boutique</label>
               <input 
                 type="text" 
                 required={!isLogin}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                style={{ width: "100%", height: "46px", padding: "0 14px", borderRadius: "10px", border: "1px solid #dfe2dd", fontSize: "14px", outline: "none" }} 
+                style={{ width: "100%", height: "46px", padding: "0 14px", borderRadius: "10px", border: "1px solid #333", background: "#1a1a1a", color: "#fff", fontSize: "14px", outline: "none" }} 
                 placeholder="Ex: Diallo Frères"
               />
             </div>
           )}
 
           <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#17221f" }}>Adresse e-mail</label>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#d0d0d0" }}>Adresse e-mail</label>
             <input 
               type="email" 
               required 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ width: "100%", height: "46px", padding: "0 14px", borderRadius: "10px", border: "1px solid #dfe2dd", fontSize: "14px", outline: "none" }} 
+              style={{ width: "100%", height: "46px", padding: "0 14px", borderRadius: "10px", border: "1px solid #333", background: "#1a1a1a", color: "#fff", fontSize: "14px", outline: "none" }} 
               placeholder="votre@email.com"
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#17221f" }}>Mot de passe</label>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "bold", marginBottom: "6px", color: "#d0d0d0" }}>Mot de passe</label>
             <div style={{ position: "relative" }}>
               <input 
                 type={showPassword ? "text" : "password"} 
                 required 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ width: "100%", height: "46px", padding: "0 40px 0 14px", borderRadius: "10px", border: "1px solid #dfe2dd", fontSize: "14px", outline: "none" }} 
+                style={{ width: "100%", height: "46px", padding: "0 40px 0 14px", borderRadius: "10px", border: "1px solid #333", background: "#1a1a1a", color: "#fff", fontSize: "14px", outline: "none" }} 
                 placeholder="••••••••"
               />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#6c7773", display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#888", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -175,22 +175,23 @@ export default function LoginPage() {
             type="submit" 
             disabled={loading}
             style={{ 
-              background: "#173f35", color: "white", border: "none", height: "46px", borderRadius: "10px", 
+              background: "linear-gradient(90deg, #b8860b 0%, #d4af37 100%)", color: "#000", border: "none", height: "46px", borderRadius: "10px", 
               fontWeight: "bold", fontSize: "15px", marginTop: "10px", cursor: loading ? "not-allowed" : "pointer",
-              display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", opacity: loading ? 0.7 : 1
+              display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", opacity: loading ? 0.7 : 1,
+              boxShadow: "0 4px 12px rgba(212, 175, 55, 0.3)"
             }}
           >
             {loading ? <Loader2 className="spin" size={18} /> : (isLogin ? "Se connecter" : "S'inscrire")}
           </button>
         </form>
 
-        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "#6c7773" }}>
-          {isLogin ? "Nouveau sur KOMI ?" : "Vous avez déjà un compte ?"}
+        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "#888" }}>
+          {isLogin ? "Nouveau sur Comy Stock ?" : "Vous avez déjà un compte ?"}
           <button 
             type="button" 
             onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }}
             style={{ 
-              background: "none", border: "none", color: "#173f35", fontWeight: "bold", 
+              background: "none", border: "none", color: "#d4af37", fontWeight: "bold", 
               cursor: "pointer", marginLeft: "5px", textDecoration: "underline" 
             }}
           >
