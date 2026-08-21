@@ -1,13 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+
+function exportToCSV(filename: string, rows: object[]) {
+  if (!rows || !rows.length) return;
+  const separator = ',';
+  const keys = Object.keys(rows[0]);
+  const csvContent =
+    keys.join(separator) +
+    '\n' +
+    rows.map(row => {
+      return keys.map(k => {
+        let cell = row[k as keyof typeof row] === null || row[k as keyof typeof row] === undefined ? '' : row[k as keyof typeof row];
+        cell = (cell as any) instanceof Date ? (cell as any).toLocaleString() : String(cell).replace(/"/g, '""');
+        if (cell.search(/("|,|\n)/g) >= 0) {
+          cell = `"${cell}"`;
+        }
+        return cell;
+      }).join(separator);
+    }).join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 import {
   AlertTriangle, ArrowDownLeft, BarChart3, Boxes,
   ChevronRight, CircleDollarSign, Menu, Store, Users, Warehouse, X, ShoppingCart,
   WifiOff, Wifi, RefreshCw, Settings, UserPlus, Truck, Wallet, LogOut
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 import { createClient } from "../../lib/supabase/client";
 import { Customer, Supplier, ModalType, Receipt } from "./types";
@@ -250,12 +283,66 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 10px' }}>
             <h3 style={{ fontSize: '16px', margin: 0 }}>Statistiques : {dateFilter === 'all' ? 'Globales' : (dateFilter === 'today' ? 'Aujourd\'hui' : (dateFilter === 'week' ? 'Cette Semaine' : 'Ce Mois-ci'))}</h3>
           </div>
-          <section className="metrics" style={{ marginBottom: '10px' }}>
+          <section className="metrics" style={{ marginBottom: '20px' }}>
             <Metric icon={Wallet} tone="green" label="Entrées (Ventes & Créances)" value={userRole !== 'seller' ? money.format(periodSales) : '***'} detail="Sur la période sélectionnée" />
             <Metric icon={ArrowDownLeft} tone="red" label="Sorties (Dépenses & Paiements)" value={userRole !== 'seller' ? money.format(periodExpenses) : '***'} detail="Sur la période sélectionnée" />
             <Metric icon={CircleDollarSign} tone="blue" label="Créances clients" value={userRole !== 'seller' ? money.format(totalDebt) : '***'} detail={`${customers.filter((c) => c.balance > 0).length} paiements en attente (Global)`} />
             <Metric icon={Boxes} tone="gold" label="Valeur du stock" value={userRole !== 'seller' ? money.format(stockValue) : '***'} detail={`${products.length} références actives (Global)`} />
           </section>
+
+          {userRole !== 'seller' && (
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+              <div className="panel" style={{ padding: '20px', background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ fontSize: '15px', color: '#333', marginBottom: '15px', marginTop: 0 }}>Évolution du Chiffre d'Affaires</h3>
+                <div style={{ width: '100%', height: 250 }}>
+                  <ResponsiveContainer>
+                    <AreaChart data={
+                      // Use treasuryTransactions to show daily cash inflow
+                      Array.from(
+                        treasuryTransactions.filter(t => t.flow_direction === 'in').reduce((acc, t) => {
+                          const date = new Date(t.rawDate || Date.now()).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
+                          acc.set(date, (acc.get(date) || 0) + t.net_amount);
+                          return acc;
+                        }, new Map<string, number>())
+                      ).map(([date, total]) => ({ date, total })).reverse().slice(-10) // last 10 days
+                    }>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                      <XAxis dataKey="date" tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} />
+                      <YAxis tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val/1000}k`} />
+                      <RechartsTooltip formatter={(value: any) => money.format(Number(value))} />
+                      <Area type="monotone" dataKey="total" stroke="#d4af37" fill="#d4af37" fillOpacity={0.2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="panel" style={{ padding: '20px', background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ fontSize: '15px', color: '#333', marginBottom: '15px', marginTop: 0 }}>Top 5 Produits Vendus</h3>
+                <div style={{ width: '100%', height: 250 }}>
+                  <ResponsiveContainer>
+                    <BarChart layout="vertical" data={
+                      // Get top products by OUT movements quantity
+                      Array.from(
+                        movements.filter(m => m.type === 'Vente' || m.type === 'Sortie').reduce((acc, m) => {
+                          const name = m.product;
+                          acc.set(name, (acc.get(name) || 0) + m.quantity);
+                          return acc;
+                        }, new Map<string, number>())
+                      ).map(([name, qty]) => ({ name, qty }))
+                        .sort((a, b) => b.qty - a.qty)
+                        .slice(0, 5)
+                    }>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
+                      <XAxis type="number" hide />
+                      <YAxis type="category" dataKey="name" width={100} tick={{fontSize: 12, fill: '#666'}} axisLine={false} tickLine={false} />
+                      <RechartsTooltip />
+                      <Bar dataKey="qty" fill="#173f35" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
+          )}
 
           {lowStock.length > 0 && (
             <section className="panel page-panel" style={{ marginTop: '20px', borderLeft: '4px solid #c7463d' }}>
@@ -285,7 +372,9 @@ export default function Home() {
         {tab === "Produits" && <section className="panel page-panel">
           {userRole !== 'seller' && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button className="button-secondary" onClick={() => exportToCSV('produits.csv', filtered)}>Exporter CSV</button>
               <button className="button-secondary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Arrivage / Entrée</button>
+
               <button className="primary" onClick={() => setModal("product")}>+ Ajouter un produit</button>
             </div>
           )}
@@ -293,9 +382,11 @@ export default function Home() {
         </section>}
         {tab === "Mouvements" && <section className="panel page-panel">
           {userRole !== 'seller' && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button className="button-secondary" onClick={() => exportToCSV('mouvements.csv', movements)}>Exporter CSV</button>
               <button className="primary" onClick={() => setModal("inflow")}><ArrowDownLeft size={16} />+ Enregistrer un Arrivage</button>
             </div>
+
           )}
           <MovementTable movements={movements} />
         </section>}
