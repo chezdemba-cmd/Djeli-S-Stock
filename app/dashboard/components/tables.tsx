@@ -81,7 +81,7 @@ export function ProductTable({ products }: { products: Product[] }) {
   );
 }
 
-export function MovementTable({ movements }: { movements: Movement[] }) {
+export function MovementTable({ movements, onCancel }: { movements: Movement[], onCancel?: (id: string) => void }) {
   if (movements.length === 0)
     return <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Aucun mouvement récent.</div>;
   return (
@@ -94,6 +94,7 @@ export function MovementTable({ movements }: { movements: Movement[] }) {
             <th>Type</th>
             <th>Quantité</th>
             <th>Auteur</th>
+            {onCancel && <th>Action</th>}
           </tr>
         </thead>
         <tbody>
@@ -108,6 +109,23 @@ export function MovementTable({ movements }: { movements: Movement[] }) {
               </td>
               <td>{m.quantity}</td>
               <td>{m.author}</td>
+              {onCancel && (
+                <td>
+                  {m.type === "Vente" ? (
+                    <button 
+                      className="button-secondary" 
+                      style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem", color: "#c7463d", borderColor: "#c7463d" }}
+                      onClick={() => {
+                        if (confirm("Êtes-vous sûr de vouloir annuler cette vente et restituer le stock ?")) {
+                          onCancel(m.id);
+                        }
+                      }}
+                    >
+                      Annuler (Retour)
+                    </button>
+                  ) : <span style={{ color: "#aaa" }}>-</span>}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

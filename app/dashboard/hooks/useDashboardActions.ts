@@ -1,5 +1,5 @@
 import { FormEvent, Dispatch, SetStateAction } from "react";
-import { processSale, payReceivable } from "../../../lib/db/actions/sales";
+import { processSale, payReceivable, cancelMovement } from "../../../lib/db/actions/sales";
 import { createCustomer } from "../../../lib/db/actions/customers";
 import { createStore, createPartnerWorkspace, createEmployee } from "../../../lib/db/actions/stores";
 import { createProduct, addStockMovement } from "../../../lib/db/actions/products";
@@ -538,6 +538,26 @@ export function useDashboardActions(
       setIsSubmitting(false);
     }
   }
+
+  async function handleCancelMovement(movementId: string) {
+    if (!isOnline) {
+      alert("Une connexion Internet est requise pour annuler une vente.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const response = await cancelMovement(movementId, activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || '') as ActionResponse<boolean>;
+    setIsSubmitting(false);
+
+    if ('error' in response) {
+      alert("Erreur: " + response.error);
+    } else {
+      alert("La vente a été annulée. Le stock a été restitué.");
+      // Soft refresh of the dashboard to reload movements/treasury (simplest way without complex state updates for both arrays)
+      window.location.reload();
+    }
+  }
+
   return {
     handleSale,
     handleCreateCustomer,
@@ -549,6 +569,7 @@ export function useDashboardActions(
     handleCreateEmployee,
     handleCreateSupplier,
     handlePaySupplierForm,
-    handleCreateExpense
+    handleCreateExpense,
+    handleCancelMovement
   };
 }

@@ -84,7 +84,7 @@ export default function Home() {
     handleSale, handleCreateProduct, handleAddStockMovementForm,
     handlePayCustomerReceivableForm, handlePaySupplierForm,
     handleCreateClientWorkspaceForm, handleCreateEmployee, handleCreateExpense,
-    handleCreateCustomer, handleCreateSupplier, handleCreateDepot
+    handleCreateCustomer, handleCreateSupplier, handleCreateDepot, handleCancelMovement
   } = useDashboardActions(data, isOnline, queueOfflineAction, setIsSubmitting, setErrorMsg, setModal, setLastReceipt);
 
   const filterByDate = (rawDate: string | undefined) => {
@@ -388,7 +388,7 @@ export default function Home() {
             </div>
 
           )}
-          <MovementTable movements={movements} />
+          <MovementTable movements={movements} onCancel={handleCancelMovement} />
         </section>}
         {tab === "Boutiques" && <section className="panel page-panel">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
