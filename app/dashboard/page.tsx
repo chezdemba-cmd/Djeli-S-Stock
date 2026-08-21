@@ -111,8 +111,8 @@ export default function Home() {
           <Warehouse size={18} />
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Structure</span>
-              {(isSuperAdmin || userRole !== 'seller') && (
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Structure principale</span>
+              {isSuperAdmin && (
                 <button 
                   type="button" 
                   onClick={() => setModal('new_client')}
