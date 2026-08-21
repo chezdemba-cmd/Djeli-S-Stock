@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { OfflineProvider } from "./providers/OfflineProvider";
 
 export const metadata: Metadata = {
   title: "Comy Stock",
@@ -22,9 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="fr">
       <body>
-        <OfflineProvider>
-          {children}
-        </OfflineProvider>
+        {children}
       </body>
     </html>
   );

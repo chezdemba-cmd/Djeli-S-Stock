@@ -44,7 +44,6 @@ import {
 
 import { createClient } from "../../lib/supabase/client";
 import { Customer, Supplier, ModalType, Receipt } from "./types";
-import { useOffline } from "../providers/OfflineProvider";
 import { Metric } from "./components/metrics";
 import { ProductTable, MovementTable, DepotTable, CustomerTable, SupplierTable, EmployeeTable, TreasuryTable } from "./components/tables";
 import { SaleForm, ProductForm, StockInflowForm, PaymentForm, CustomerForm, SupplierForm, PaySupplierForm, DepotForm, ClientForm, EmployeeForm, ExpenseForm } from "./components/forms";
@@ -67,7 +66,6 @@ export default function Home() {
   const [mobileNav, setMobileNav] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const { isOnline, offlineQueue, syncing, lastSync, queueOfflineAction } = useOffline();
 
   // Load Data Hook
   const data = useDashboardData();
@@ -85,7 +83,7 @@ export default function Home() {
     handlePayCustomerReceivableForm, handlePaySupplierForm,
     handleCreateClientWorkspaceForm, handleCreateEmployee, handleCreateExpense,
     handleCreateCustomer, handleCreateSupplier, handleCreateDepot, handleCancelMovement
-  } = useDashboardActions(data, isOnline, queueOfflineAction, setIsSubmitting, setErrorMsg, setModal, setLastReceipt);
+  } = useDashboardActions(data, setIsSubmitting, setErrorMsg, setModal, setLastReceipt);
 
   const filterByDate = (rawDate: string | undefined) => {
     if (!rawDate || dateFilter === "all") return true;
@@ -230,28 +228,9 @@ export default function Home() {
           <button className="menu-button" onClick={() => setMobileNav(true)} aria-label="Menu"><Menu /></button>
           <div style={{ flex: 1 }}><p>Vendredi 17 juillet 2026</p><h1>{tab}</h1></div>
           
-          <div className="network-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: isOnline ? '#e8f5e9' : '#fff3e0', borderRadius: '8px', color: isOnline ? '#2e7d32' : '#e65100', fontSize: '0.9rem', marginRight: '1rem' }}>
-            {syncing ? <RefreshCw size={16} className="spin" /> : (isOnline ? <Wifi size={16} /> : <WifiOff size={16} />)}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <strong>{isOnline ? "En ligne" : "Hors ligne"}</strong>
-              <small>{offlineQueue.length > 0 ? `${offlineQueue.length} action(s) en attente` : `Sync: ${lastSync}`}</small>
-            </div>
-            <button 
-              title="Réinitialiser le cache PWA & Forcer la mise à jour"
-              onClick={async () => {
-                if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-                  const regs = await navigator.serviceWorker.getRegistrations();
-                  for (const r of regs) await r.unregister();
-                }
-                localStorage.clear();
-                window.location.reload();
-              }}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#666', padding: '2px 4px', marginLeft: '4px' }}
-            >
-              <RefreshCw size={14} />
-            </button>
-          </div>
-
+          {userRole !== 'seller' && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}> </div>
+          )}
 
           <div className="header-actions">
             <button className="primary" onClick={() => setModal("sale")}><ShoppingCart size={18} />Vendre</button>

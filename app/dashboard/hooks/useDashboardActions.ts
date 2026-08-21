@@ -6,7 +6,7 @@ import { createProduct, addStockMovement } from "../../../lib/db/actions/product
 import { createSupplier, paySupplier } from "../../../lib/db/actions/suppliers";
 import { createExpense } from "../../../lib/db/actions/treasury";
 import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction, ModalType, Receipt } from "../types";
-import type { OfflineAction } from "../../providers/OfflineProvider";
+
 import type { Database } from "../../../types/database.types";
 
 // Les server actions renvoient { data } en cas de succès ou { error } en cas d'échec ;
@@ -44,8 +44,7 @@ const speak = (text: string) => {
 
 export function useDashboardActions(
   data: DashboardData,
-  isOnline: boolean,
-  queueOfflineAction: (action: OfflineAction) => void,
+  
   setIsSubmitting: Dispatch<SetStateAction<boolean>>,
   setErrorMsg: Dispatch<SetStateAction<string | null>>,
   setModal: Dispatch<SetStateAction<ModalType>>,
@@ -94,13 +93,7 @@ export function useDashboardActions(
     };
 
     try {
-      if (isOnline) {
-        await processSale(payload).catch(() => {
-          queueOfflineAction({ type: "SALE", payload });
-        });
-      } else {
-        queueOfflineAction({ type: "SALE", payload });
-      }
+      await processSale(payload);
 
       setProducts(current => current.map(p => p.id === productId ? { ...p, quantity: p.quantity - quantity } : p));
       setMovements(current => [{ id: String(Date.now()), product: product.name, type: "Vente", quantity, date: "À l’instant", author: "Vous" }, ...current]);
@@ -132,10 +125,7 @@ export function useDashboardActions(
 
   async function handleCreateCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("La création de client nécessite une connexion internet pour le moment.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       name: formData.get("name") as string,
@@ -162,7 +152,7 @@ export function useDashboardActions(
           dueDate: ''
         };
         setCustomers(current => [mappedCustomer, ...current]);
-        localStorage.setItem('djelis_customers', JSON.stringify([mappedCustomer, ...customers]));
+        
         setModal(null);
       }
     } catch (e: unknown) {
@@ -174,10 +164,7 @@ export function useDashboardActions(
 
   async function handleCreateDepot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("La création de dépôt nécessite une connexion internet pour le moment.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       name: formData.get("name") as string,
@@ -204,8 +191,8 @@ export function useDashboardActions(
         };
         setDepots(current => [mappedStore, ...current]);
         setStoreId(newStore.id);
-        localStorage.setItem('djelis_stores', JSON.stringify([mappedStore, ...depots]));
-        localStorage.setItem('djelis_store_id', newStore.id);
+        
+        
         setModal(null);
       }
     } catch (e: unknown) {
@@ -217,11 +204,7 @@ export function useDashboardActions(
 
   async function handleCreateProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("La création de produit nécessite une connexion internet.");
-      setIsSubmitting(false);
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       name: formData.get("name") as string,
@@ -255,7 +238,7 @@ export function useDashboardActions(
           salePrice: p.sale_price
         };
         setProducts(current => [mappedProduct, ...current]);
-        localStorage.setItem('djelis_products', JSON.stringify([mappedProduct, ...products]));
+        
         setModal(null);
       }
     } catch (e: unknown) {
@@ -267,11 +250,7 @@ export function useDashboardActions(
 
   async function handleAddStockMovementForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("L'enregistrement de mouvement nécessite une connexion internet.");
-      setIsSubmitting(false);
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const productId = formData.get("product_id") as string;
     const quantity = Number(formData.get("quantity"));
@@ -314,11 +293,7 @@ export function useDashboardActions(
 
   async function handlePayCustomerReceivableForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Le versement nécessite une connexion internet.");
-      setIsSubmitting(false);
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const customerId = formData.get("customer_id") as string;
     const amount = Number(formData.get("amount"));
@@ -357,10 +332,7 @@ export function useDashboardActions(
 
   async function handleCreateClientWorkspaceForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Requis : connexion internet.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = { 
       name: formData.get("name") as string,
@@ -387,10 +359,7 @@ export function useDashboardActions(
 
   async function handleCreateEmployee(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Requis : connexion internet.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       email: formData.get("email") as string,
@@ -420,10 +389,7 @@ export function useDashboardActions(
 
   async function handleCreateSupplier(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Requis : connexion internet.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       name: formData.get("name") as string,
@@ -443,7 +409,7 @@ export function useDashboardActions(
           id: p.id, name: p.name, phone: p.phone || '', balance: 0, status: 'À jour'
         };
         setSuppliers(current => [newSupplier, ...current]);
-        localStorage.setItem('djelis_suppliers', JSON.stringify([newSupplier, ...suppliers]));
+        
         setModal(null);
       }
     } catch (e: unknown) {
@@ -455,11 +421,7 @@ export function useDashboardActions(
 
   async function handlePaySupplierForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Le règlement nécessite une connexion internet.");
-      setIsSubmitting(false);
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const supplierId = formData.get("supplier_id") as string;
     const amount = Number(formData.get("amount"));
@@ -498,10 +460,7 @@ export function useDashboardActions(
 
   async function handleCreateExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isOnline) {
-      setErrorMsg("Requis : connexion internet.");
-      return;
-    }
+    
     const formData = new FormData(event.currentTarget);
     const payload = {
       amount: Number(formData.get("amount")),
@@ -540,10 +499,7 @@ export function useDashboardActions(
   }
 
   async function handleCancelMovement(movementId: string) {
-    if (!isOnline) {
-      alert("Une connexion Internet est requise pour annuler une vente.");
-      return;
-    }
+    
     
     setIsSubmitting(true);
     const response = await cancelMovement(movementId, activeOrgId || localStorage.getItem('djelis_active_org') || accessibleOrgs[0]?.id || '') as ActionResponse<boolean>;

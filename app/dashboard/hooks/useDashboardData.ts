@@ -3,13 +3,13 @@ import { createClient } from "../../../lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Product, Movement, Customer, Supplier, Depot, TreasuryTransaction, Employee } from "../types";
 import type { Database } from "../../../types/database.types";
-import { useOffline } from "../../providers/OfflineProvider";
+
 import { createClientWorkspace } from "../../../lib/db/actions/stores";
 
 export function useDashboardData() {
   const router = useRouter();
   const supabase = createClient();
-  const { isOnline } = useOffline();
+  
 
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -39,7 +39,7 @@ export function useDashboardData() {
         return;
       }
 
-      if (isOnline) {
+      if (true) {
         let currentActiveOrgId = localStorage.getItem('djelis_active_org');
         const { data: profile } = await supabase.from('profiles').select('is_super_admin').eq('id', session.user.id).single();
         const superAdmin = profile?.is_super_admin || false;
@@ -119,7 +119,7 @@ export function useDashboardData() {
             minStock: p.min_stock, purchasePrice: p.purchase_price, salePrice: p.sale_price
           }));
           setProducts(mapped);
-          localStorage.setItem('djelis_products', JSON.stringify(mapped));
+          
         }
 
         // Charger les créances réelles
@@ -144,7 +144,7 @@ export function useDashboardData() {
             };
           });
           setCustomers(mappedCustomers);
-          localStorage.setItem('djelis_customers', JSON.stringify(mappedCustomers));
+          
         }
 
         // Charger les fournisseurs et dettes
@@ -168,7 +168,7 @@ export function useDashboardData() {
               };
             });
             setSuppliers(mappedSuppliers);
-            localStorage.setItem('djelis_suppliers', JSON.stringify(mappedSuppliers));
+            
           }
         }
 
@@ -221,7 +221,7 @@ export function useDashboardData() {
           finalStores = [{ id: 'default-store', name: 'Boutique Principale', city: 'Bamako', manager: 'Gérant', references: 0, stockValue: 0 }];
         }
         setDepots(finalStores);
-        localStorage.setItem('djelis_stores', JSON.stringify(finalStores));
+        
 
         const { data: employeesData } = await employeesQuery;
         if (employeesData) setEmployees(employeesData);
@@ -231,27 +231,20 @@ export function useDashboardData() {
           const m = membership as { store_id: string, role: string };
           setStoreId(m.store_id);
           setUserRole(m.role || 'seller');
-          localStorage.setItem('djelis_store_id', m.store_id);
-          localStorage.setItem('djelis_user_role', m.role || 'seller');
+          
+          
         } else if (finalStores.length > 0) {
           setStoreId(finalStores[0].id);
           setUserRole('seller');
-          localStorage.setItem('djelis_store_id', finalStores[0].id);
-          localStorage.setItem('djelis_user_role', 'seller');
+          
+          
         }
-      } else {
-        setProducts(JSON.parse(localStorage.getItem('djelis_products') || "[]"));
-        setCustomers(JSON.parse(localStorage.getItem('djelis_customers') || "[]"));
-        setSuppliers(JSON.parse(localStorage.getItem('djelis_suppliers') || "[]"));
-        setDepots(JSON.parse(localStorage.getItem('djelis_stores') || "[]"));
-        setStoreId(localStorage.getItem('djelis_store_id') || "mock-store-id");
-        setUserRole(localStorage.getItem('djelis_user_role') || "seller");
       }
       setSessionLoading(false);
     };
 
     checkAuthAndLoadData();
-  }, [supabase, router, isOnline]);
+  }, [supabase, router]);
 
 
 

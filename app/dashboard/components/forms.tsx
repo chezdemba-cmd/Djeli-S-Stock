@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Product, Customer, Supplier, Depot } from "../types";
-import { useOffline } from "../../providers/OfflineProvider";
+
 import { BarcodeScanner } from "./BarcodeScanner";
 import {
   ShoppingCart,
@@ -27,7 +27,7 @@ export function SaleForm({
   isSubmitting: boolean;
   errorMsg: string | null;
 }) {
-  const { isOnline } = useOffline();
+  
   const [selectedProduct, setSelectedProduct] = useState("");
   const [qty, setQty] = useState(1);
   const [paid, setPaid] = useState(0);
@@ -74,21 +74,7 @@ export function SaleForm({
           <p>Enregistrez une transaction manuelle.</p>
         </div>
       </div>
-      {!isOnline && (
-        <div
-          className="alert-warning"
-          style={{
-            background: "#fff3e0",
-            color: "#e65100",
-            padding: "10px",
-            borderRadius: "8px",
-            marginBottom: "1rem",
-            fontSize: "0.9rem",
-          }}
-        >
-          Vous êtes hors ligne. La vente sera synchronisée au retour du réseau.
-        </div>
-      )}
+      
       {errorMsg && (
         <div
           className="alert-error"
